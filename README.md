@@ -1,9 +1,19 @@
+
+This is the fork of [snowflake-connector-nodejs](https://github.com/snowflakedb/snowflake-connector-nodejs)
+with the following changes:
+
+- Fixes https://github.com/snowflakedb/snowflake-connector-nodejs/issues/449 by moving non-mandatory dependencies to peerDependencies. So, folks who don't need e.g AWS SDK don't have to "download the whole internet".
+
+Published as [@naturalcycles/snowflake-sdk](https://www.npmjs.com/package/@naturalcycles/snowflake-sdk).
+
+## Readme
+
 ********************************************************************************
 NodeJS Driver for Snowflake
 ********************************************************************************
 <p>
   <a href="https://github.com/snowflakedb/snowflake-connector-nodejs/actions?query=workflow%3A%22Build+and+Test%22+branch%3Amaster" target="_blank"><img src="https://github.com/snowflakedb/snowflake-connector-nodejs/workflows/Build%20and%20Test/badge.svg?branch=master" alt="master" /></a>
-  <a href="https://www.npmjs.com/package/snowflake-sdk" target="_blank"><img src="https://img.shields.io/npm/v/snowflake-sdk.svg" alt="npm" /></a> 
+  <a href="https://www.npmjs.com/package/@naturalcycles/snowflake-sdk" target="_blank"><img src="https://img.shields.io/npm/v/@naturalcycles/snowflake-sdk.svg" alt="npm" /></a> 
   <a href="http://www.apache.org/licenses/LICENSE-2.0.txt" target="_blank"><img src="http://img.shields.io/:license-Apache%202-brightgreen.svg" alt="apache" /> </a>
   <a href="https://codecov.io/gh/snowflakedb/snowflake-connector-nodejs" target="_blank"><img src="https://codecov.io/gh/snowflakedb/snowflake-connector-nodejs/branch/master/graph/badge.svg?token=QZMWDu35ds" alt="codecov" /></a>
 </p>
@@ -15,7 +25,7 @@ NodeJS Driver for Snowflake
 Install
 ======================================================================
 
-Run `npm i snowflake-sdk` in your existing NodeJs project.
+Run `npm i @naturalcycles/snowflake-sdk` in your existing NodeJs project.
 
 Docs
 ======================================================================
