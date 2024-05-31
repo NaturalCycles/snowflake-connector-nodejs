@@ -1,6 +1,7 @@
 /*
- * Copyright (c) 2015-2019 Snowflake Computing Inc. All rights reserved.
+ * Copyright (c) 2015-2024 Snowflake Computing Inc. All rights reserved.
  */
+
 const snowflake = require('./../../lib/snowflake');
 const Core = require('./../../lib/core');
 const assert = require('assert');
@@ -23,7 +24,7 @@ describe('Statement Tests', function () {
 
     const coreInst = Core({
       qaMode: true,
-      httpClientClass: require('./../../lib/http/node'),
+      httpClientClass: require('./../../lib/http/node').NodeHttpClient,
       loggerClass: require('./../../lib/logger/node'),
       client:
           {

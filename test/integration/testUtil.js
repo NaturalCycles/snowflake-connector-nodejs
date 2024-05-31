@@ -1,12 +1,16 @@
 /*
- * Copyright (c) 2015-2019 Snowflake Computing Inc. All rights reserved.
+ * Copyright (c) 2015-2024 Snowflake Computing Inc. All rights reserved.
  */
+
 const snowflake = require('./../../lib/snowflake');
 const connOptions = require('./connectionOptions');
 const assert = require('assert');
 const fs = require('fs');
+const fsPromises = require('fs').promises;
 const crypto = require('crypto');
 const Logger = require('../../lib/logger');
+const path = require('path');
+const os = require('os');
 
 module.exports.createConnection = function (validConnectionOptionsOverride = {}) {
   return snowflake.createConnection({
@@ -219,15 +223,14 @@ function normalizeRowObject(row) {
 }
 
 /**
- * @param file FileSyncObject
+ * @param file 
  */
 module.exports.deleteFileSyncIgnoringErrors = function (file) {
-  if (file) {
+  if (fs.existsSync(file)) {
     try {
-      fs.closeSync(file.fd);
-      fs.unlinkSync(file.name);
+      fs.unlinkSync(file);
     } catch (e) {
-      Logger.getInstance().warn(`Cannot remove file ${file.name}: ${JSON.stringify(e)}`);
+      Logger.getInstance().warn(`Cannot remove file ${file}: ${JSON.stringify(e)}`);
     }
   }
 };
@@ -266,4 +269,47 @@ module.exports.randomizeName = function (name) {
 module.exports.assertLogMessage = function (expectedLevel, expectedMessage, actualMessage) {
   const regexPattern = `^{"level":"${expectedLevel}","message":"\\[.*\\]: ${expectedMessage}`;
   return assert.match(actualMessage, new RegExp(regexPattern));
+};
+
+/**
+ * @param directory string
+ * @return string
+ */
+module.exports.createTestingDirectoryInTemp = function (directory) {
+  const tempDir = path.join(os.tmpdir(), directory);
+  fs.mkdirSync(tempDir, { recursive: true });
+  return tempDir;
+};
+
+/**
+ * @param mainDir string
+ * @param fileName string
+ * @param data string
+ * @return string
+ */
+module.exports.createTempFile = function (mainDir, fileName, data = '') {
+  const fullpath = path.join(mainDir, fileName);
+  fs.writeFileSync(fullpath, data);
+  return fullpath;
+};
+/**
+ *  Async version of method to create temp file
+ * @param mainDir string Main directory for created file
+ * @param fileName string Created file name
+ * @param data string Input for created file
+ * @return string
+ */
+module.exports.createTempFileAsync = async function (mainDir, fileName, data = '') {
+  const fullpath = path.join(mainDir, fileName);
+  await fsPromises.writeFile(fullpath, data);
+  return fullpath;
+};
+
+/**
+ * @param option object
+ */
+module.exports.createRandomFileName = function ( option = { prefix: '', postfix: '', extension: '' }) {
+  const randomName = crypto.randomUUID();
+  const fileName = `${option.prefix || ''}${randomName}${option.postfix || ''}${option.extension || ''}`;
+  return fileName;
 };

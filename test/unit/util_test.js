@@ -1,9 +1,12 @@
 /*
- * Copyright (c) 2015 Snowflake Computing Inc. All rights reserved.
+ * Copyright (c) 2015-2024 Snowflake Computing Inc. All rights reserved.
  */
 
 const Util = require('./../../lib/util');
 const assert = require('assert');
+const path = require('path');
+const fsPromises = require('fs/promises');
+const os = require('os');
 
 describe('Util', function () {
   it('Util.isFunction()', function () {
@@ -491,17 +494,17 @@ describe('Util', function () {
 
   describe('Util.isLoginRequest Test', function () {
     const baseUrl = 'wwww.test.com';
-    const testCases = 
+    const testCases =
     [
       {
         testName: 'test URL with a right login end point',
         endPoint: '/v1/login-request',
-        result: true, 
+        result: true,
       },
       {
         testName: 'test URL with a wrong login end point',
         endPoint: '/login-request',
-        result: false, 
+        result: false,
       },
       {
         testName: 'test URL with a right authenticator-request point',
@@ -558,39 +561,39 @@ describe('Util', function () {
           isRetryable: true,
         },
       ];
-      
+
       const maxRetryTimeout = 300;
       let currentSleepTime = 1;
-      let retryCount = 1;
-      let totalTimeout = currentSleepTime;
+      let retryCount = 0;
+      let totalElapsedTime = currentSleepTime;
       for (const response of errorCodes) {
-        retryCount++;
-        const result = Util.getJitteredSleepTime(retryCount, currentSleepTime, totalTimeout, maxRetryTimeout);
+        const result = Util.getJitteredSleepTime(retryCount, currentSleepTime, totalElapsedTime, maxRetryTimeout);
         const jitter = currentSleepTime / 2;
         const nextSleep = 2 ** retryCount;
         currentSleepTime = result.sleep;
-        totalTimeout = result.totalTimeout;
-       
+        totalElapsedTime = result.totalElapsedTime;
+        retryCount++;
+
         assert.strictEqual(Util.isRetryableHttpError(response, true), true);
         assert.ok(currentSleepTime <= nextSleep + jitter || currentSleepTime >= nextSleep - jitter);
       }
-    
-      assert.strictEqual(retryCount, 7);
-      assert.ok(totalTimeout <= maxRetryTimeout);
-    }); 
+
+      assert.strictEqual(retryCount, 6);
+      assert.ok(totalElapsedTime <= maxRetryTimeout);
+    });
 
     it('test - retryTimeout is 0', function () {
       const maxRetryTimeout = 0;
       let currentSleepTime = 1;
       const maxRetryCount = 20;
-      let totalTimeout = currentSleepTime;
+      let totalElapsedTime = currentSleepTime;
       let retryCount = 1;
       for ( ; retryCount < maxRetryCount; retryCount++) {
-        const result = Util.getJitteredSleepTime(retryCount, currentSleepTime, totalTimeout, maxRetryTimeout);
+        const result = Util.getJitteredSleepTime(retryCount, currentSleepTime, totalElapsedTime, maxRetryTimeout);
         const jitter = currentSleepTime / 2;
         const nextSleep = 2 ** retryCount;
         currentSleepTime = result.sleep;
-        totalTimeout = result.totalTimeout;
+        totalElapsedTime = result.totalElapsedTime;
 
         assert.ok(currentSleepTime <= nextSleep + jitter || currentSleepTime >= nextSleep - jitter);
       }
@@ -724,6 +727,88 @@ describe('Util', function () {
     }
   });
 
+  describe('Okta Authentication Retry Condition', () => {
+    const testCases =
+    [
+      {
+        name: 'test - default values',
+        retryOption: {
+          maxRetryCount: 7,
+          numRetries: 1,
+          remainingTimeout: 300000,
+          maxRetryTimeout: 300000
+        },
+        result: true,
+      },
+      {
+        name: 'test - the value of the numRetries is the same as the max retry count',
+        retryOption: {
+          maxRetryCount: 7,
+          numRetries: 7,
+          remainingTimeout: 300000,
+          maxRetryTimeout: 300000
+        },
+        result: true,
+      },
+      {
+        name: 'test - max retry timout is 0',
+        retryOption: {
+          maxRetryCount: 7,
+          numRetries: 1,
+          remainingTimeout: 300000,
+          maxRetryTimeout: 0
+        },
+        result: true,
+      },
+      {
+        name: 'test - the max retry timeout is 0 and number of retry is over',
+        retryOption: {
+          maxRetryCount: 7,
+          numRetries: 8,
+          remainingTimeout: -50,
+          maxRetryTimeout: 0
+        },
+        result: false,
+      },
+      {
+        name: 'test - the retry count is over the max retry count ',
+        retryOption: {
+          maxRetryCount: 7,
+          numRetries: 8,
+          remainingTimeout: 300000,
+          maxRetryTimeout: 300
+        },
+        result: false,
+      },
+      {
+        name: 'test - the remaining timout is 0',
+        retryOption: {
+          maxRetryCount: 7,
+          numRetries: 8,
+          remainingTimeout: 0,
+          maxRetryTimeout: 300
+        },
+        result: false,
+      },
+      {
+        name: 'test - the remaining timoue is negative',
+        retryOption: {
+          maxRetryCount: 7,
+          numRetries: 8,
+          remainingTimeout: -10,
+          maxRetryTimeout: 300
+        },
+        result: false,
+      },
+    ];
+
+    testCases.forEach(({ name, retryOption, result }) => {
+      it(name, () => {
+        assert.strictEqual(Util.shouldRetryOktaAuth({ ...retryOption, startTime: Date.now() }), result);
+      });
+    });
+  });
+
   describe('isPrivateKey', () => {
     [
       // pragma: allowlist nextline secret
@@ -771,13 +856,13 @@ describe('Util', function () {
   describe('Util Test - handling circular reference in isValidAsync exception handling', () => {
     const shouldMatchNonCircular = '{"one":1,"two":2}';
     const shouldMatchCircular = '{"one":1,"two":2,"myself":"[Circular]"}';
-  
+
     it('non-circular reference is handled correctly by JSON.stringify replacer', () => {
       const a = { 'one': 1, 'two': 2 };
       const replacedA = JSON.stringify(a, Util.getCircularReplacer());
       assert.deepEqual(replacedA, shouldMatchNonCircular);
     });
-  
+
     it('circular reference is handled correctly by JSON.stringify replacer', () => {
       const b = { 'one': 1, 'two': 2 };
       b.myself = b;
@@ -884,6 +969,133 @@ describe('Util', function () {
         } else {
           assert.deepEqual(compareAndLogEnvAndAgentProxies.warnings, shouldLog, 'expected warning message does not match!');
         }
+      });
+    });
+  });
+
+  if (os.platform() !== 'win32') {
+    describe('Util.isFileNotWritableByGroupOrOthers()', function () {
+      let tempDir = null;
+      let oldMask = null;
+
+      before(async function () {
+        tempDir = await fsPromises.mkdtemp(path.join(os.tmpdir(), 'permission_tests'));
+        oldMask = process.umask(0o000);
+      });
+
+      after(async function () {
+        await fsPromises.rm(tempDir, { recursive: true, force: true });
+        process.umask(oldMask);
+      });
+
+      [
+        { filePerm: 0o700, isValid: true },
+        { filePerm: 0o600, isValid: true },
+        { filePerm: 0o500, isValid: true },
+        { filePerm: 0o400, isValid: true },
+        { filePerm: 0o300, isValid: true },
+        { filePerm: 0o200, isValid: true },
+        { filePerm: 0o100, isValid: true },
+        { filePerm: 0o707, isValid: false },
+        { filePerm: 0o706, isValid: false },
+        { filePerm: 0o705, isValid: true },
+        { filePerm: 0o704, isValid: true },
+        { filePerm: 0o703, isValid: false },
+        { filePerm: 0o702, isValid: false },
+        { filePerm: 0o701, isValid: true },
+        { filePerm: 0o770, isValid: false },
+        { filePerm: 0o760, isValid: false },
+        { filePerm: 0o750, isValid: true },
+        { filePerm: 0o740, isValid: true },
+        { filePerm: 0o730, isValid: false },
+        { filePerm: 0o720, isValid: false },
+        { filePerm: 0o710, isValid: true },
+      ].forEach(async function ({ filePerm, isValid }) {
+        it('File with permission: ' + filePerm.toString(8) + ' should be valid=' + isValid, async function () {
+          const filePath = path.join(tempDir, `file_${filePerm.toString()}`);
+          await writeFile(filePath, filePerm);
+          assert.strictEqual(await Util.isFileNotWritableByGroupOrOthers(filePath, fsPromises), isValid);
+        });
+      });
+
+      async function writeFile(filePath, mode) {
+        await fsPromises.writeFile(filePath, '', { encoding: 'utf8', mode: mode });
+      }
+    });
+  }
+
+  if (os.platform() !== 'win32') {
+    describe('Util.isFileModeCorrect()', function () {
+      const tempDir = path.join(os.tmpdir(), 'permission_tests');
+      let oldMask = null;
+
+      before(async function () {
+        await fsPromises.mkdir(tempDir);
+        oldMask = process.umask(0o000);
+      });
+
+      after(async function () {
+        await fsPromises.rm(tempDir, { recursive: true, force: true });
+        process.umask(oldMask);
+      });
+
+      [
+        { dirPerm: 0o700, expectedPerm: 0o700, isCorrect: true },
+        { dirPerm: 0o755, expectedPerm: 0o600, isCorrect: false },
+      ].forEach(async function ({ dirPerm, expectedPerm, isCorrect }) {
+        it('Should return ' + isCorrect + ' when directory permission ' + dirPerm.toString(8) + ' is compared to ' + expectedPerm.toString(8), async function () {
+          const dirPath = path.join(tempDir, `dir_${dirPerm.toString(8)}`);
+          await fsPromises.mkdir(dirPath, { mode: dirPerm });
+          assert.strictEqual(await Util.isFileModeCorrect(dirPath, expectedPerm, fsPromises), isCorrect);
+        });
+      });
+
+      [
+        { filePerm: 0o700, expectedPerm: 0o700, isCorrect: true },
+        { filePerm: 0o755, expectedPerm: 0o600, isCorrect: false },
+      ].forEach(async function ({ filePerm, expectedPerm, isCorrect }) {
+        it('Should return ' + isCorrect + ' when file permission ' + filePerm.toString(8) + ' is compared to ' + expectedPerm.toString(8), async function () {
+          const dirPath = path.join(tempDir, `file_${filePerm.toString(8)}`);
+          await fsPromises.appendFile(dirPath, '', { mode: filePerm });
+          assert.strictEqual(await Util.isFileModeCorrect(dirPath, expectedPerm, fsPromises), isCorrect);
+        });
+      });
+    });
+  }
+
+  describe('shouldPerformGCPBucket function test', () => {
+    const testCases = [
+      {
+        name: 'test - default',
+        accessToken: 'Token',
+        forceGCPUseDownscopedCredential: false,
+        result: true,
+      },
+      {
+        name: 'test - when the disableGCPTokenUplaod is enabled',
+        accessToken: 'Token',
+        forceGCPUseDownscopedCredential: true,
+        result: false,
+      },
+      {
+        name: 'test - when token is empty but the disableGCPTokenUplaod is enabled',
+        accessToken: null,
+        forceGCPUseDownscopedCredential: true,
+        result: false,
+      },
+      {
+        name: 'test - test - when token is empty but the disableGCPTokenUplaod is disabled',
+        accessToken: null,
+        forceGCPUseDownscopedCredential: false,
+        result: false,
+      },
+    ];
+
+    testCases.forEach(({ name, accessToken, forceGCPUseDownscopedCredential, result }) => {
+      it(name, () => {
+        process.env.SNOWFLAKE_FORCE_GCP_USE_DOWNSCOPED_CREDENTIAL = forceGCPUseDownscopedCredential;
+        assert.strictEqual(Util.shouldPerformGCPBucket(accessToken), result);
+        delete process.env.SNOWFLAKE_FORCE_GCP_USE_DOWNSCOPED_CREDENTIAL;
       });
     });
   });

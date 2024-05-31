@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015-2019 Snowflake Computing Inc. All rights reserved.
+ * Copyright (c) 2015-2024 Snowflake Computing Inc. All rights reserved.
  */
 
 const HttpsAgent = require('https').Agent;
@@ -13,7 +13,7 @@ const ErrorCodes = Errors.codes;
  * @constructor
  */
 function HttpsMockAgentOcspRevoked(options) {
-  const agent = HttpsAgent.apply(this, options);
+  const agent = HttpsAgent.apply(this, [options]);
   agent.createConnection = function (options) {
     const socket = HttpsAgent.prototype.createConnection.apply(this, arguments);
     return SocketUtil.secureSocket(socket, options.host, null, {
@@ -31,7 +31,7 @@ function HttpsMockAgentOcspRevoked(options) {
  * @constructor
  */
 function HttpsMockAgentOcspUnkwown(options) {
-  const agent = HttpsAgent.apply(this, options);
+  const agent = HttpsAgent.apply(this, [options]);
   agent.createConnection = function (options) {
     const socket = HttpsAgent.prototype.createConnection.apply(this, arguments);
     return SocketUtil.secureSocket(socket, options.host, null, {
@@ -49,7 +49,7 @@ function HttpsMockAgentOcspUnkwown(options) {
  * @constructor
  */
 function HttpsMockAgentOcspInvalid(options) {
-  const agent = HttpsAgent.apply(this, options);
+  const agent = HttpsAgent.apply(this, [options]);
   agent.createConnection = function (options) {
     const socket = HttpsAgent.prototype.createConnection.apply(this, arguments);
     return SocketUtil.secureSocket(socket, options.host, null, {

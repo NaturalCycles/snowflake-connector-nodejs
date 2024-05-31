@@ -1,10 +1,12 @@
 /*
- * Copyright (c) 2021 Snowflake Computing Inc. All rights reserved.
+ * Copyright (c) 2015-2024 Snowflake Computing Inc. All rights reserved.
  */
 
 const assert = require('assert');
 const mock = require('mock-require');
-const SnowflakeS3Util = require('./../../../lib/file_transfer_agent/s3_util');
+const SnowflakeS3Util = require('./../../../lib/file_transfer_agent/s3_util').S3Util;
+const extractBucketNameAndPath = require('./../../../lib/file_transfer_agent/s3_util').extractBucketNameAndPath;
+
 const resultStatus = require('./../../../lib/file_transfer_agent/file_util').resultStatus;
 
 describe('S3 client', function () {
@@ -16,12 +18,24 @@ describe('S3 client', function () {
   const mockKey = 'mockKey';
   const mockIv = 'mockIv';
   const mockMatDesc = 'mockMatDesc';
+  const noProxyConnectionConfig = {
+    getProxy: function () {
+      return null;
+    }
+  };
 
   let AWS;
   let s3;
   let filesystem;
-  let meta;
   const dataFile = mockDataFile;
+  const meta = {
+    stageInfo: {
+      location: mockLocation,
+      path: mockTable + '/' + mockPath + '/',
+      creds: {}
+    },
+    SHA256_DIGEST: mockDigest,
+  };
   const encryptionMetadata = {
     key: mockKey,
     iv: mockIv,
@@ -52,7 +66,6 @@ describe('S3 client', function () {
 
             return new putObject;
           };
-          this.destroy = function () {};
         }
 
         return new S3;
@@ -66,42 +79,27 @@ describe('S3 client', function () {
     s3 = require('s3');
     filesystem = require('filesystem');
 
-    AWS = new SnowflakeS3Util(s3, filesystem);
-  });
-  beforeEach(function () {
-    const stageInfo = {
-      location: mockLocation,
-      path: mockTable + '/' + mockPath + '/',
-      creds: {}
-    };
-    meta = {
-      stageInfo,
-      SHA256_DIGEST: mockDigest,
-      client: AWS.createClient(stageInfo),
-    };
-  });
-  this.afterEach(function () {
-    AWS.destroyClient(meta['client']);
+    AWS = new SnowflakeS3Util(noProxyConnectionConfig, s3, filesystem);
   });
 
   it('extract bucket name and path', async function () {
-    let result = AWS.extractBucketNameAndPath('sfc-eng-regression/test_sub_dir/');
+    let result = extractBucketNameAndPath('sfc-eng-regression/test_sub_dir/');
     assert.strictEqual(result.bucketName, 'sfc-eng-regression');
     assert.strictEqual(result.s3path, 'test_sub_dir/');
 
-    result = AWS.extractBucketNameAndPath('sfc-eng-regression/stakeda/test_stg/test_sub_dir/');
+    result = extractBucketNameAndPath('sfc-eng-regression/stakeda/test_stg/test_sub_dir/');
     assert.strictEqual(result.bucketName, 'sfc-eng-regression');
     assert.strictEqual(result.s3path, 'stakeda/test_stg/test_sub_dir/');
 
-    result = AWS.extractBucketNameAndPath('sfc-eng-regression/');
+    result = extractBucketNameAndPath('sfc-eng-regression/');
     assert.strictEqual(result.bucketName, 'sfc-eng-regression');
     assert.strictEqual(result.s3path, '');
 
-    result = AWS.extractBucketNameAndPath('sfc-eng-regression//');
+    result = extractBucketNameAndPath('sfc-eng-regression//');
     assert.strictEqual(result.bucketName, 'sfc-eng-regression');
     assert.strictEqual(result.s3path, '/');
 
-    result = AWS.extractBucketNameAndPath('sfc-eng-regression///');
+    result = extractBucketNameAndPath('sfc-eng-regression///');
     assert.strictEqual(result.bucketName, 'sfc-eng-regression');
     assert.strictEqual(result.s3path, '//');
   });
@@ -126,16 +124,13 @@ describe('S3 client', function () {
 
             return new getObject;
           };
-          this.destroy = function () {};
         }
 
         return new S3;
       }
     });
     s3 = require('s3');
-    const AWS = new SnowflakeS3Util(s3);
-    meta['client'] = AWS.createClient(meta['stageInfo']);
-
+    const AWS = new SnowflakeS3Util(noProxyConnectionConfig, s3);
     await AWS.getFileHeader(meta, dataFile);
     assert.strictEqual(meta['resultStatus'], resultStatus.RENEW_TOKEN);
   });
@@ -155,16 +150,14 @@ describe('S3 client', function () {
 
             return new getObject;
           };
-          this.destroy = function () {};
         }
 
         return new S3;
       }
     });
     s3 = require('s3');
-    const AWS = new SnowflakeS3Util(s3);
-    meta['client'] = AWS.createClient(meta['stageInfo']);
 
+    const AWS = new SnowflakeS3Util(noProxyConnectionConfig, s3);
     await AWS.getFileHeader(meta, dataFile);
     assert.strictEqual(meta['resultStatus'], resultStatus.NOT_FOUND_FILE);
   });
@@ -184,16 +177,13 @@ describe('S3 client', function () {
 
             return new getObject;
           };
-          this.destroy = function () {};
         }
 
         return new S3;
       }
     });
     s3 = require('s3');
-    const AWS = new SnowflakeS3Util(s3);
-    meta['client'] = AWS.createClient(meta['stageInfo']);
-
+    const AWS = new SnowflakeS3Util(noProxyConnectionConfig, s3, filesystem);
     await AWS.getFileHeader(meta, dataFile);
     assert.strictEqual(meta['resultStatus'], resultStatus.RENEW_TOKEN);
   });
@@ -213,16 +203,13 @@ describe('S3 client', function () {
 
             return new getObject;
           };
-          this.destroy = function () {};
         }
 
         return new S3;
       }
     });
     s3 = require('s3');
-    const AWS = new SnowflakeS3Util(s3);
-    meta['client'] = AWS.createClient(meta['stageInfo']);
-
+    const AWS = new SnowflakeS3Util(noProxyConnectionConfig, s3, filesystem);
     await AWS.getFileHeader(meta, dataFile);
     assert.strictEqual(meta['resultStatus'], resultStatus.ERROR);
   });
@@ -247,7 +234,6 @@ describe('S3 client', function () {
 
             return new putObject;
           };
-          this.destroy = function () {};
         }
 
         return new S3;
@@ -260,9 +246,7 @@ describe('S3 client', function () {
     });
     s3 = require('s3');
     filesystem = require('filesystem');
-    const AWS = new SnowflakeS3Util(s3, filesystem);
-    meta['client'] = AWS.createClient(meta['stageInfo']);
-
+    const AWS = new SnowflakeS3Util(noProxyConnectionConfig, s3, filesystem);
     await AWS.uploadFile(dataFile, meta, encryptionMetadata);
     assert.strictEqual(meta['resultStatus'], resultStatus.RENEW_TOKEN);
   });
@@ -282,7 +266,6 @@ describe('S3 client', function () {
 
             return new putObject;
           };
-          this.destroy = function () {};
         }
 
         return new S3;
@@ -295,9 +278,7 @@ describe('S3 client', function () {
     });
     s3 = require('s3');
     filesystem = require('filesystem');
-    const AWS = new SnowflakeS3Util(s3, filesystem);
-    meta['client'] = AWS.createClient(meta['stageInfo']);
-
+    const AWS = new SnowflakeS3Util(noProxyConnectionConfig, s3, filesystem);
     await AWS.uploadFile(dataFile, meta, encryptionMetadata);
     assert.strictEqual(meta['resultStatus'], resultStatus.NEED_RETRY_WITH_LOWER_CONCURRENCY);
   });
@@ -317,7 +298,6 @@ describe('S3 client', function () {
 
             return new putObject;
           };
-          this.destroy = function () {};
         }
 
         return new S3;
@@ -330,10 +310,51 @@ describe('S3 client', function () {
     });
     s3 = require('s3');
     filesystem = require('filesystem');
-    const AWS = new SnowflakeS3Util(s3, filesystem);
-    meta['client'] = AWS.createClient(meta['stageInfo']);
-
+    const AWS = new SnowflakeS3Util(noProxyConnectionConfig, s3, filesystem);
     await AWS.uploadFile(dataFile, meta, encryptionMetadata);
     assert.strictEqual(meta['resultStatus'], resultStatus.NEED_RETRY);
+  });
+
+  it('proxy configured', async function () {
+    mock('s3', {
+      S3: function (config) {
+        function S3() {
+          this.config = config;
+          this.putObject = function () {
+          };
+        }
+
+        return new S3;
+      }
+    });
+    const proxyOptions = {
+      host: '127.0.0.1',
+      port: 8080,
+      user: 'user',
+      password: 'password',
+      protocol: 'https'
+    };
+    const proxyConnectionConfig = {
+      accessUrl: 'http://snowflake.com',
+      getProxy: function () {
+        return proxyOptions;
+      }
+    };
+    s3 = require('s3');
+    const AWS = new SnowflakeS3Util(proxyConnectionConfig, s3);
+    meta['client'] = AWS.createClient(meta['stageInfo']);
+
+    const clientConfig = await meta['client'].config.requestHandler.configProvider;
+    assert.equal(clientConfig.httpAgent.options.host, proxyOptions.host);
+    assert.equal(clientConfig.httpAgent.options.hostname, 'snowflake.com');
+    assert.equal(clientConfig.httpAgent.options.user, proxyOptions.user);
+    assert.equal(clientConfig.httpAgent.options.password, proxyOptions.password);
+    assert.equal(clientConfig.httpAgent.options.port, proxyOptions.port);
+
+    assert.equal(clientConfig.httpsAgent.options.host, proxyOptions.host);
+    assert.equal(clientConfig.httpsAgent.options.hostname, 'snowflake.com');
+    assert.equal(clientConfig.httpsAgent.options.user, proxyOptions.user);
+    assert.equal(clientConfig.httpsAgent.options.password, proxyOptions.password);
+    assert.equal(clientConfig.httpsAgent.options.port, proxyOptions.port);
   });
 });

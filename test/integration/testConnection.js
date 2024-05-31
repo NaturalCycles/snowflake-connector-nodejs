@@ -1,6 +1,7 @@
 /*
- * Copyright (c) 2015-2019 Snowflake Computing Inc. All rights reserved.
+ * Copyright (c) 2015-2024 Snowflake Computing Inc. All rights reserved.
  */
+
 const snowflake = require('./../../lib/snowflake');
 const async = require('async');
 const assert = require('assert');
@@ -10,12 +11,13 @@ const Util = require('./../../lib/util');
 const Core = require('./../../lib/core');
 const { stdout } = require('test-console');
 const { assertLogMessage } = require('./testUtil');
+const { configureLogger } = require('../configureLogger');
 
 describe('Connection test', function () {
   it('return tokens in qaMode', function () {
     const coreInst = Core({
       qaMode: true,
-      httpClientClass: require('./../../lib/http/node'),
+      httpClientClass: require('./../../lib/http/node').NodeHttpClient,
       loggerClass: require('./../../lib/logger/node'),
       client: {
         version: Util.driverVersion,
@@ -111,6 +113,10 @@ describe('Connection test', function () {
 });
 
 describe('Connection test - validate default parameters', function () {
+  before(() => {
+    configureLogger();
+  });
+
   it('Valid "warehouse" parameter', function () {
     const output = stdout.inspectSync(() => {
       snowflake.createConnection({
