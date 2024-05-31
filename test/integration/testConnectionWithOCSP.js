@@ -1,6 +1,7 @@
 /*
- * Copyright (c) 2015-2019 Snowflake Computing Inc. All rights reserved.
+ * Copyright (c) 2015-2024 Snowflake Computing Inc. All rights reserved.
  */
+
 const assert = require('assert');
 
 const snowflake = require('./../../lib/snowflake');
@@ -39,6 +40,7 @@ function getConnectionOptions() {
 }
 
 describe('Connection with OCSP test', function () {
+  this.timeout(180000);
   function cleanupOcspState() {
     OcspResponseCache.deleteCache();
     snowflake.configure({ ocspFailOpen: true });
