@@ -8,10 +8,12 @@ const assert = require('assert');
 const connOption = require('./connectionOptions');
 const testUtil = require('./testUtil');
 const Util = require('./../../lib/util');
+const nodeUtil = require('util');
 const Core = require('./../../lib/core');
 const { stdout } = require('test-console');
 const { assertLogMessage } = require('./testUtil');
 const { configureLogger } = require('../configureLogger');
+const { v4: uuidv4 } = require('uuid');
 
 describe('Connection test', function () {
   it('return tokens in qaMode', function () {
@@ -37,13 +39,14 @@ describe('Connection test', function () {
     const connection = snowflake.createConnection(connOption.valid);
     assert.deepEqual(connection.getTokens(), {});
   });
+
   it('Simple Connect', async function () {
     const connection = snowflake.createConnection(connOption.valid);
 
     await testUtil.connectAsync(connection);
-    assert.ok(connection.isUp(), 'not active');
+    testUtil.assertConnectionActive(connection);
     await testUtil.destroyConnectionAsync(connection);
-    assert.ok(!connection.isUp(), 'still active');
+    testUtil.assertConnectionInactive(connection);
   });
 
   it('Wrong Username', function (done) {
@@ -110,7 +113,76 @@ describe('Connection test', function () {
 
     timeout();
   });
+
+  it('Failed connection returns sanitized error', function (done) {
+    const randomId = uuidv4();
+    const randomId2 = uuidv4();
+    const connection = snowflake.createConnection({
+      account: 'some-account',
+      username: randomId,
+      password: randomId2,
+      sfRetryMaxLoginRetries: 1,
+    });
+
+    connection.connect(
+      function (err) {
+        try {
+          assert.ok(err);
+          assert.equal(err.name, 'RequestFailedError');
+          err = JSON.stringify(err, Util.getCircularReplacer());
+          assert.strictEqual(err.includes(randomId), false);
+          assert.strictEqual(err.includes(randomId2), false);
+          done();
+        } catch (err) {
+          done(err);
+        }
+      });
+  });
+
+  it('When connect async with original callback then successfully established', async function () {
+    const connection = snowflake.createConnection(connOption.valid);
+    await testUtil.connectAsyncWithOriginalCallback(connection, () => {});
+
+    await testUtil.assertActiveConnectionDestroyedCorrectlyAsync(connection);
+  });
+
+  it('When connect async with undefined callback then successfully established', async function () {
+    const connection = snowflake.createConnection(connOption.valid);
+    await testUtil.connectAsyncWithOriginalCallback(connection, undefined);
+
+    await testUtil.assertActiveConnectionDestroyedCorrectlyAsync(connection);
+  });
+
+  it('When connect async with null callback then successfully established', async function () {
+    const connection = snowflake.createConnection(connOption.valid);
+    await testUtil.connectAsyncWithOriginalCallback(connection, null);
+
+    await testUtil.assertActiveConnectionDestroyedCorrectlyAsync(connection);
+  });
+
+  it('When connect async within the strict mode then successfully established', async function () {
+    'use strict';
+    const connection = snowflake.createConnection(connOption.valid);
+    await testUtil.connectAsync(connection);
+
+    await testUtil.assertActiveConnectionDestroyedCorrectlyAsync(connection);
+  });
+
+  it('When promisify called with call then successfully established', async function () {
+    const connection = snowflake.createConnection(connOption.valid);
+    await nodeUtil.promisify(connection.connect).call(connection);
+
+    await testUtil.assertActiveConnectionDestroyedCorrectlyAsync(connection);
+  });
+
+  it('When promisify called with bind then successfully established', async function () {
+    const connection = snowflake.createConnection(connOption.valid);
+    await nodeUtil.promisify(connection.connect.bind(connection))();
+
+    await testUtil.assertActiveConnectionDestroyedCorrectlyAsync(connection);
+  });
 });
+
 
 describe('Connection test - validate default parameters', function () {
   before(() => {
@@ -127,7 +199,17 @@ describe('Connection test - validate default parameters', function () {
         validateDefaultParameters: true,
       });
     });
-    assert.deepEqual(output, []);
+    const expectedMessagesParts = [
+      'Creating new connection object',
+      'Creating Connection[id:',
+      'Connection[id:',
+      'connection object created successfully'
+    ];
+
+    // Check if all output messages match the expected patterns
+    output.forEach((item, index) => {
+      assert(item.includes(expectedMessagesParts[index]), `Output message at index ${index} does not match expected pattern. \nReceived message: ${item} \nExpected substring: ${expectedMessagesParts[index]}`);
+    });
   });
 
   it('Invalid "warehouse" parameter', function () {
@@ -140,7 +222,7 @@ describe('Connection test - validate default parameters', function () {
         validateDefaultParameters: true,
       });
     });
-    assertLogMessage('ERROR', '\'waerhouse\' is an unknown connection parameter. Did you mean \'warehouse\'?', output[0]);
+    assertLogMessage('ERROR', '\'waerhouse\' is an unknown connection parameter. Did you mean \'warehouse\'?', output[1]);
   });
 
   it('Valid "database" parameter', function () {
@@ -153,7 +235,17 @@ describe('Connection test - validate default parameters', function () {
         validateDefaultParameters: true,
       });
     });
-    assert.deepEqual(output, []);
+    const expectedMessagesParts = [
+      'Creating new connection object',
+      'Creating Connection[id:',
+      'Connection[id:',
+      'connection object created successfully'
+    ];
+
+    // Check if all output messages match the expected patterns
+    output.forEach((item, index) => {
+      assert(item.includes(expectedMessagesParts[index]), `Output message at index ${index} does not match expected pattern. \nReceived message: ${item} \nExpected substring: ${expectedMessagesParts[index]}`);
+    });
   });
 
   it('Invalid "db" parameter', function () {
@@ -166,7 +258,7 @@ describe('Connection test - validate default parameters', function () {
         validateDefaultParameters: true,
       });
     });
-    assertLogMessage('ERROR', '\'db\' is an unknown connection parameter. Did you mean \'host\'?', output[0]);
+    assertLogMessage('ERROR', '\'db\' is an unknown connection parameter. Did you mean \'host\'?', output[1]);
   });
 
   it('Invalid "database" parameter', function () {
@@ -179,7 +271,7 @@ describe('Connection test - validate default parameters', function () {
         validateDefaultParameters: true,
       });
     });
-    assertLogMessage('ERROR', '\'datbse\' is an unknown connection parameter. Did you mean \'database\'?', output[0]);
+    assertLogMessage('ERROR', '\'datbse\' is an unknown connection parameter. Did you mean \'database\'?', output[1]);
   });
 
   it('Valid "schema" parameter', function () {
@@ -192,7 +284,17 @@ describe('Connection test - validate default parameters', function () {
         validateDefaultParameters: true,
       });
     });
-    assert.deepEqual(output, []);
+    const expectedMessagesParts = [
+      'Creating new connection object',
+      'Creating Connection[id:',
+      'Connection[id:',
+      'connection object created successfully'
+    ];
+
+    // Check if all output messages match the expected patterns
+    output.forEach((item, index) => {
+      assert(item.includes(expectedMessagesParts[index]), `Output message at index ${index} does not match expected pattern. \nReceived message: ${item} \nExpected substring: ${expectedMessagesParts[index]}`);
+    });
   });
 
   it('Invalid "schema" parameter', function () {
@@ -205,7 +307,7 @@ describe('Connection test - validate default parameters', function () {
         validateDefaultParameters: true,
       });
     });
-    assertLogMessage('ERROR', '\'shcema\' is an unknown connection parameter. Did you mean \'schema\'?', output[0]);
+    assertLogMessage('ERROR', '\'shcema\' is an unknown connection parameter. Did you mean \'schema\'?', output[1]);
   });
 });
 
@@ -436,7 +538,7 @@ describe('Connection test - connection pool', function () {
         function (callback) {
           // Once acquired, release the connection
           resourcePromise1.then(function (connection) {
-            assert.ok(connection.isUp(), 'not active');
+            testUtil.assertConnectionActive(connection);
             assert.equal(connectionPool.pending, 0);
 
             connectionPool.release(connection).then(() => {
@@ -474,7 +576,7 @@ describe('Connection test - connection pool', function () {
         function (callback) {
           // Once acquired, release the connection
           resourcePromise1.then(function (connection) {
-            assert.ok(connection.isUp(), 'not active');
+            testUtil.assertConnectionActive(connection);
             assert.equal(connectionPool.pending, 4);
 
             connectionPool.release(connection).then(() => {
@@ -486,7 +588,7 @@ describe('Connection test - connection pool', function () {
         function (callback) {
           // Once acquired, release the connection
           resourcePromise2.then(function (connection) {
-            assert.ok(connection.isUp(), 'not active');
+            testUtil.assertConnectionActive(connection);
             assert.equal(connectionPool.pending, 3);
 
             connectionPool.release(connection).then(() => {
@@ -498,7 +600,7 @@ describe('Connection test - connection pool', function () {
         function (callback) {
           // Once acquired, release the connection
           resourcePromise3.then(function (connection) {
-            assert.ok(connection.isUp(), 'not active');
+            testUtil.assertConnectionActive(connection);
             assert.equal(connectionPool.pending, 2);
 
             connectionPool.release(connection).then(() => {
@@ -510,7 +612,7 @@ describe('Connection test - connection pool', function () {
         function (callback) {
           // Once acquired, release the connection
           resourcePromise4.then(function (connection) {
-            assert.ok(connection.isUp(), 'not active');
+            testUtil.assertConnectionActive(connection);
             assert.equal(connectionPool.pending, 1);
 
             connectionPool.release(connection).then(() => {
@@ -522,7 +624,7 @@ describe('Connection test - connection pool', function () {
         function (callback) {
           // Once acquired, release the connection
           resourcePromise5.then(function (connection) {
-            assert.ok(connection.isUp(), 'not active');
+            testUtil.assertConnectionActive(connection);
             assert.equal(connectionPool.pending, 0);
 
             connectionPool.release(connection).then(() => {
@@ -551,7 +653,7 @@ describe('Connection test - connection pool', function () {
 
     // Once acquired, destroy the connection
     resourcePromise1.then(function (connection) {
-      assert.ok(connection.isUp(), 'not active');
+      testUtil.assertConnectionActive(connection);
       assert.equal(connectionPool.pending, 0);
 
       connectionPool.destroy(connection).then(() => {
@@ -584,7 +686,7 @@ describe('Connection test - connection pool', function () {
         function (callback) {
           // Once acquired, destroy the connection
           resourcePromise1.then(function (connection) {
-            assert.ok(connection.isUp(), 'not active');
+            testUtil.assertConnectionActive(connection);
             assert.equal(connectionPool.pending, 4);
 
             connectionPool.destroy(connection).then(() => {
@@ -596,7 +698,7 @@ describe('Connection test - connection pool', function () {
         function (callback) {
           // Once acquired, destroy the connection
           resourcePromise2.then(function (connection) {
-            assert.ok(connection.isUp(), 'not active');
+            testUtil.assertConnectionActive(connection);
             assert.equal(connectionPool.pending, 3);
 
             connectionPool.destroy(connection).then(() => {
@@ -608,7 +710,7 @@ describe('Connection test - connection pool', function () {
         function (callback) {
           // Once acquired, destroy the connection
           resourcePromise3.then(function (connection) {
-            assert.ok(connection.isUp(), 'not active');
+            testUtil.assertConnectionActive(connection);
             assert.equal(connectionPool.pending, 2);
 
             connectionPool.destroy(connection).then(() => {
@@ -620,7 +722,7 @@ describe('Connection test - connection pool', function () {
         function (callback) {
           // Once acquired, destroy the connection
           resourcePromise4.then(function (connection) {
-            assert.ok(connection.isUp(), 'not active');
+            testUtil.assertConnectionActive(connection);
             assert.equal(connectionPool.pending, 1);
 
             connectionPool.destroy(connection).then(() => {
@@ -632,7 +734,7 @@ describe('Connection test - connection pool', function () {
         function (callback) {
           // Once acquired, destroy the connection
           resourcePromise5.then(function (connection) {
-            assert.ok(connection.isUp(), 'not active');
+            testUtil.assertConnectionActive(connection);
             assert.equal(connectionPool.pending, 0);
 
             connectionPool.destroy(connection).then(() => {
@@ -657,7 +759,7 @@ describe('Connection test - connection pool', function () {
     // Use the connection pool, automatically creates a new connection
     connectionPool
       .use(async (connection) => {
-        assert.ok(connection.isUp(), 'not active');
+        testUtil.assertConnectionActive(connection);
         assert.equal(connectionPool.size, 1);
         assert.equal(connectionPool.pending, 0);
         assert.equal(connectionPool.spareResourceCapacity, 4);
@@ -670,7 +772,7 @@ describe('Connection test - connection pool', function () {
         // Use the connection pool, will use the existing connection
         connectionPool
           .use(async (connection) => {
-            assert.ok(connection.isUp(), 'not active');
+            testUtil.assertConnectionActive(connection);
             assert.equal(connectionPool.size, 1);
             assert.equal(connectionPool.pending, 0);
             assert.equal(connectionPool.spareResourceCapacity, 4);
@@ -697,7 +799,7 @@ describe('Connection test - connection pool', function () {
     try {
       // Use the connection pool, automatically creates a new connection
       await connectionPool.use(async (connection) => {
-        assert.ok(connection.isUp(), 'not active');
+        testUtil.assertConnectionActive(connection);
         assert.equal(connectionPool.size, 1);
       });
     } catch (err) {

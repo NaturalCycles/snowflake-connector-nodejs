@@ -40,6 +40,12 @@ module.exports.connectAsync = function (connection) {
   });
 };
 
+// Other connect-related methods form testUtil do not allow to pass the custom callback from tests
+// This should be used when it is important to execute exactly the specified callback - with no wrapper
+module.exports.connectAsyncWithOriginalCallback = function (connection, callback) {
+  return connection.connectAsync(callback);
+};
+
 module.exports.destroyConnection = function (connection, callback) {
   connection.destroy(function (err) {
     assert.ok(!err, JSON.stringify(err));
@@ -201,22 +207,27 @@ module.exports.executeQueryAndVerifyUsePool = function (connectionPool, sql, exp
   });
 };
 
+function normalizeValue(value) {
+  const convertToString = (value !== null) && (value !== undefined)
+    && (typeof value.toJSON === 'function');
+  const convertToJSNumber = (value !== null) && (value !== undefined)
+    && (typeof value.toJSNumber === 'function');
+  // If this is a bigInt type then convert to JS Number instead of string JSON representation
+  if (convertToJSNumber) {
+    return value.toJSNumber();
+  } else if (convertToString) {
+    return  value.toJSON();
+  } else {
+    return value;
+  }
+}
+
 function normalizeRowObject(row) {
   const normalizedRow = {};
   for (const key in row) {
     if (Object.prototype.hasOwnProperty.call(row, key)) {
-      const convertToString = (row[key] !== null) && (row[key] !== undefined)
-        && (typeof row[key].toJSON === 'function');
-      const convertToJSNumber = (row[key] !== null) && (row[key] !== undefined)
-        && (typeof row[key].toJSNumber === 'function');
-      // If this is a bigInt type then convert to JS Number instead of string JSON representation
-      if (convertToJSNumber) {
-        normalizedRow[key] = row[key].toJSNumber();
-      } else if (convertToString) {
-        normalizedRow[key] = row[key].toJSON();
-      } else {
-        normalizedRow[key] = row[key];
-      }
+      const value = row[key];
+      normalizedRow[key] = normalizeValue(value, normalizedRow, key);
     }
   }
   return normalizedRow;
@@ -313,3 +324,25 @@ module.exports.createRandomFileName = function ( option = { prefix: '', postfix:
   const fileName = `${option.prefix || ''}${randomName}${option.postfix || ''}${option.extension || ''}`;
   return fileName;
 };
+
+module.exports.sleepAsync = function (ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+};
+
+module.exports.assertConnectionActive = function (connection) {
+  assert.ok(connection.isUp(), 'Connection expected to be active, but was inactive.');
+};
+
+module.exports.assertConnectionInactive = function (connection) {
+  assert.ok(!connection.isUp(), 'Connection expected to be inactive, but was active.');
+};
+
+module.exports.assertActiveConnectionDestroyedCorrectlyAsync = async function (connection) {
+  module.exports.assertConnectionActive(connection);
+  await module.exports.destroyConnectionAsync(connection);
+  module.exports.assertConnectionInactive(connection);
+};
+
+
+module.exports.normalizeRowObject = normalizeRowObject;
+module.exports.normalizeValue = normalizeValue;
