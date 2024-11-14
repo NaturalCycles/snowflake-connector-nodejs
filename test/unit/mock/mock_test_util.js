@@ -28,7 +28,11 @@ const connectionOptions =
     accessUrl: 'http://fakeaccount.snowflakecomputing.com',
     username: 'fakeusername',
     password: 'fakepassword',
-    account: 'fakeaccount'
+    account: 'fakeaccount',
+    getPasscodeInPassword: () => false,
+    getPasscode: () => null,  
+    authenticator: 'SNOWFLAKE',
+    getAuthenticator: () => 'SNOWFLAKE',
   };
 
 const connectionOptionsDeserialize =
@@ -104,12 +108,25 @@ const connectionOptionsExternalBrowser =
   authenticator: 'EXTERNALBROWSER'
 };
 
+const connectionOptionsidToken =
+{
+  accessUrl: 'http://fakeaccount.snowflakecomputing.com',
+  username: 'fakeusername',
+  account: 'fakeaccount',
+  idToken: 'fakeIdToken',
+  authenticator: 'EXTERNALBROWSER'
+};
+
 const connectionOptionsKeyPair =
 {
   accessUrl: 'http://fakeaccount.snowflakecomputing.com',
   username: 'fakeusername',
   account: 'fakeaccount',
-  privateKey: 'fakeprivatekey',
+  getPrivateKey: () => 'fakeprivatekey',
+  getPrivateKeyPath: () => '',
+  getPrivateKeyPass: () => '',
+  getAuthenticator: () => 'SNOWFLAKE_JWT',
+  getServiceName: () => '',
   authenticator: 'SNOWFLAKE_JWT'
 };
 
@@ -118,8 +135,9 @@ const connectionOptionsKeyPairPath =
   accessUrl: 'http://fakeaccount.snowflakecomputing.com',
   username: 'fakeusername',
   account: 'fakeaccount',
-  privateKeyPath: 'fakeprivatekeypath',
-  privateKeyPass: 'fakeprivatekeypass',
+  getPrivateKey: () => '',
+  getPrivateKeyPath: () => 'fakeprivatekeypath',
+  getPrivateKeyPass: () => 'fakeprivatekeypass',
   authenticator: 'SNOWFLAKE_JWT'
 };
 
@@ -166,4 +184,5 @@ exports.connectionOptions =
     authKeyPairPath: connectionOptionsKeyPairPath,
     authOauth: connectionOptionsOauth,
     authOkta: connectionOptionsOkta,
+    authIdToken: connectionOptionsidToken,
   };

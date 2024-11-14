@@ -27,6 +27,7 @@ const snowflakeTestToken = process.env.SNOWFLAKE_TEST_OAUTH_TOKEN;
 const snowflakeTestOktaUser = process.env.SNOWFLAKE_TEST_OKTA_USER;
 const snowflakeTestOktaPass = process.env.SNOWFLAKE_TEST_OKTA_PASS;
 const snowflakeTestOktaAuth = process.env.SNOWFLAKE_TEST_OKTA_AUTH;
+const snowflakeTestPasscode = process.env.SNOWFLAKE_TEST_PASSCODE;
 
 if (snowflakeTestProtocol === undefined) {
   snowflakeTestProtocol = 'https';
@@ -60,7 +61,8 @@ const valid =
     warehouse: snowflakeTestWarehouse,
     database: snowflakeTestDatabase,
     schema: snowflakeTestSchema,
-    role: snowflakeTestRole
+    role: snowflakeTestRole,
+    host: snowflakeTestHost,
   };
 
 const snowflakeAccount = snowflakeTestAdminUser !== undefined ?
@@ -73,18 +75,16 @@ const snowflakeAccount = snowflakeTestAdminUser !== undefined ?
 
 const wrongUserName =
   {
-
     accessUrl: accessUrl,
-    username: 'node',
-    password: 'test',
+    username: snowflakeTestUser,
+    password: 'testWrongPass',
     account: snowflakeTestAccount
   };
 
 const wrongPwd =
   {
-
     accessUrl: accessUrl,
-    username: 'nodejs',
+    username: snowflakeTestUser,
     password: '',
     account: snowflakeTestAccount
   };
@@ -98,6 +98,7 @@ const externalBrowser =
   database: snowflakeTestDatabase,
   schema: snowflakeTestSchema,
   role: snowflakeTestRole,
+  host: snowflakeTestHost,
   authenticator: 'EXTERNALBROWSER'
 };
 
@@ -161,6 +162,12 @@ const keypairWrongToken =
   account: snowflakeTestAccount,
   privateKey: snowflakeTestPrivateKey,
   authenticator: 'SNOWFLAKE_JWT'
+};
+
+const MFA = {
+  ...valid,
+  authenticator: 'USER_PWD_MFA_AUTHENTICATOR',
+  passcode: snowflakeTestPasscode,
 };
 
 const oauth =
@@ -238,3 +245,4 @@ exports.oauthMismatchUser = oauthMismatchUser;
 exports.okta = okta;
 exports.privatelink = privatelink;
 exports.connectionWithProxy = connectionWithProxy;
+exports.MFA = MFA;

@@ -39,9 +39,11 @@ MockHttpClient.prototype.request = function (request) {
 
   // Closing a connection includes a requestID as a query parameter in the url
   // Example: http://fake504.snowflakecomputing.com/session?delete=true&requestId=a40454c6-c3bb-4824-b0f3-bae041d9d6a2
-  if (request.url.includes('session?delete=true')) {
+  if (request.url.includes('session?delete=true') || request.url.includes('session/heartbeat?requestId=')) {
+    // Offset for the query character preceding the 'requestId=' string in URL (either '?' or '&')
+    const PRECEDING_QUERY_CHAR_OFFSET = 1;
     // Remove the requestID query parameter for the mock HTTP client
-    request.url = request.url.substring(0, request.url.indexOf('&requestId='));
+    request.url = request.url.substring(0, request.url.indexOf('requestId=') - PRECEDING_QUERY_CHAR_OFFSET);
   }
 
   // get the output of the specified request from the map
@@ -85,9 +87,11 @@ MockHttpClient.prototype.requestAsync = function (request) {
 
   // Closing a connection includes a requestID as a query parameter in the url
   // Example: http://fake504.snowflakecomputing.com/session?delete=true&requestId=a40454c6-c3bb-4824-b0f3-bae041d9d6a2
-  if (request.url.includes('session?delete=true')) {
+  if (request.url.includes('session?delete=true') || request.url.includes('session/heartbeat?requestId=')) {
+    // Offset for the query character preceding the 'requestId=' string in URL (either '?' or '&')
+    const PRECEDING_QUERY_CHAR_OFFSET = 1;
     // Remove the requestID query parameter for the mock HTTP client
-    request.url = request.url.substring(0, request.url.indexOf('&requestId='));
+    request.url = request.url.substring(0, request.url.indexOf('requestId=') - PRECEDING_QUERY_CHAR_OFFSET);
   }
 
   // get the output of the specified request from the map
@@ -203,7 +207,10 @@ function buildRequestOutputMappings(clientInfo) {
                   CLIENT_APP_ID: 'JavaScript',
                   CLIENT_APP_VERSION: clientInfo.version,
                   CLIENT_ENVIRONMENT: clientInfo.environment,
-                  SESSION_PARAMETERS: {}
+                  SESSION_PARAMETERS: {
+                    CLIENT_REQUEST_MFA_TOKEN: false,
+                    CLIENT_STORE_TEMPORARY_CREDENTIAL: false,
+                  }
                 }
             }
         },
@@ -1220,7 +1227,10 @@ function buildRequestOutputMappings(clientInfo) {
                   CLIENT_APP_ID: 'JavaScript',
                   CLIENT_APP_VERSION: clientInfo.version,
                   CLIENT_ENVIRONMENT: clientInfo.environment,
-                  SESSION_PARAMETERS: {}
+                  SESSION_PARAMETERS: {
+                    CLIENT_REQUEST_MFA_TOKEN: false,
+                    CLIENT_STORE_TEMPORARY_CREDENTIAL: false,
+                  }
                 }
             }
         },
@@ -1439,7 +1449,9 @@ function buildRequestOutputMappings(clientInfo) {
                   CLIENT_ENVIRONMENT: clientInfo.environment,
                   SESSION_PARAMETERS: {
                     CLIENT_SESSION_KEEP_ALIVE: true,
-                    CLIENT_SESSION_KEEP_ALIVE_HEARTBEAT_FREQUENCY: 1800
+                    CLIENT_SESSION_KEEP_ALIVE_HEARTBEAT_FREQUENCY: 1800,
+                    CLIENT_REQUEST_MFA_TOKEN: false,
+                    CLIENT_STORE_TEMPORARY_CREDENTIAL: false,
                   }
                 }
             }
@@ -1546,6 +1558,8 @@ function buildRequestOutputMappings(clientInfo) {
                   CLIENT_ENVIRONMENT: clientInfo.environment,
                   SESSION_PARAMETERS: {
                     JS_TREAT_INTEGER_AS_BIGINT: true,
+                    CLIENT_REQUEST_MFA_TOKEN: false,                 
+                    CLIENT_STORE_TEMPORARY_CREDENTIAL: false,
                   }
                 }
             }
@@ -1651,7 +1665,10 @@ function buildRequestOutputMappings(clientInfo) {
                   CLIENT_APP_ID: 'JavaScript',
                   CLIENT_APP_VERSION: clientInfo.version,
                   CLIENT_ENVIRONMENT: clientInfo.environment,
-                  SESSION_PARAMETERS: {}
+                  SESSION_PARAMETERS: {
+                    CLIENT_REQUEST_MFA_TOKEN: false,
+                    CLIENT_STORE_TEMPORARY_CREDENTIAL: false,
+                  }
                 }
             }
         },
@@ -1741,7 +1758,10 @@ function buildRequestOutputMappings(clientInfo) {
                   CLIENT_APP_ID: 'JavaScript',
                   CLIENT_APP_VERSION: clientInfo.version,
                   CLIENT_ENVIRONMENT: clientInfo.environment,
-                  SESSION_PARAMETERS: {}
+                  SESSION_PARAMETERS: {
+                    CLIENT_REQUEST_MFA_TOKEN: false,
+                    CLIENT_STORE_TEMPORARY_CREDENTIAL: false,
+                  }
                 }
             }
         },
@@ -1830,7 +1850,10 @@ function buildRequestOutputMappings(clientInfo) {
                   CLIENT_APP_ID: 'JavaScript',
                   CLIENT_APP_VERSION: clientInfo.version,
                   CLIENT_ENVIRONMENT: clientInfo.environment,
-                  SESSION_PARAMETERS: {}
+                  SESSION_PARAMETERS: {
+                    CLIENT_REQUEST_MFA_TOKEN: false,
+                    CLIENT_STORE_TEMPORARY_CREDENTIAL: false,
+                  }
                 }
             }
         },
@@ -1869,7 +1892,10 @@ function buildRequestOutputMappings(clientInfo) {
                   CLIENT_APP_ID: 'JavaScript',
                   CLIENT_APP_VERSION: clientInfo.version,
                   CLIENT_ENVIRONMENT: clientInfo.environment,
-                  SESSION_PARAMETERS: {}
+                  SESSION_PARAMETERS: {
+                    CLIENT_REQUEST_MFA_TOKEN: false,
+                    CLIENT_STORE_TEMPORARY_CREDENTIAL: false,
+                  }
                 }
             }
         },
@@ -1907,7 +1933,10 @@ function buildRequestOutputMappings(clientInfo) {
                   CLIENT_APP_ID: 'JavaScript',
                   CLIENT_APP_VERSION: clientInfo.version,
                   CLIENT_ENVIRONMENT: clientInfo.environment,
-                  SESSION_PARAMETERS: {}
+                  SESSION_PARAMETERS: {
+                    CLIENT_REQUEST_MFA_TOKEN: false,
+                    CLIENT_STORE_TEMPORARY_CREDENTIAL: false,
+                  }
                 }
             }
         },
@@ -1954,6 +1983,35 @@ function buildRequestOutputMappings(clientInfo) {
               'Authorization': 'Snowflake Token="SESSION_TOKEN"',
               'Content-Type': 'application/json',
               'X-Snowflake-Service': 'fakeservicename2'
+            }
+        },
+      output:
+        {
+          err: null,
+          response:
+            {
+              statusCode: 200,
+              statusMessage: 'OK',
+              body:
+                {
+                  code: null,
+                  data: null,
+                  message: null,
+                  success: true
+                }
+            }
+        }
+    },
+    {
+      request:
+        {
+          method: 'POST',
+          url: 'http://fakeaccount.snowflakecomputing.com/session/heartbeat',
+          headers:
+            {
+              'Accept': 'application/json',
+              'Authorization': 'Snowflake Token="SESSION_TOKEN"',
+              'Content-Type': 'application/json',
             }
         },
       output:

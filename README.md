@@ -33,6 +33,12 @@ Docs
 For detailed documentation and basic usage examples, please see the documentation 
 at <a href="https://docs.snowflake.net/manuals/user-guide/nodejs-driver.html">NodeJS Driver for Snowflake</a>.
 
+Note
+----------------------------------------------------------------------
+
+This driver currently does not support GCP regional endpoints. Please ensure that any workloads using through this driver do not require support for regional endpoints on GCP. If you have questions about this, please contact Snowflake Support.
+
+
 Test
 ======================================================================
 
@@ -70,7 +76,7 @@ or
 npm run test:unit
 ```
 
-To run single test file use `test:single` script, e.g. run tests in `test/unit/snowflake_test.js` only:
+To run a single test file use `test:single` script, e.g. run tests in `test/unit/snowflake_test.js` only:
 
 ```
 npm run test:single -- test/unit/snowflake_test.js

@@ -6,53 +6,9 @@
  * The snowflake-sdk module provides an instance to connect to the Snowflake server
  * @see [source] {@link https://docs.snowflake.com/en/developer-guide/node-js/nodejs-driver}
  */
-declare module '@naturalcycles/snowflake-sdk' {
-    export const enum RowMode {
-        ARRAY = 'array',
-        OBJECT = 'object',
-        OBJECT_WITH_RENAMED_DUPLICATED_COLUMNS = 'object_with_renamed_duplicated_columns',
-    }
+declare module 'snowflake-sdk' {
 
-    export const enum LogLevel {
-        ERROR = 'ERROR',
-        WARN = 'WARN',
-        INFO = 'INFO',
-        DEBUG = 'DEBUG',
-        TRACE = 'TRACE',
-    }
-
-    export const enum DataType {
-        String = 'String',
-        Boolean = 'Boolean',
-        Number = 'Number',
-        Date = 'Date',
-        JSON = 'JSON',
-        Buffer = 'Buffer',
-    }
-
-    const enum StatementStatus {
-        Fetching = "fetching",
-        Complete = "complete",
-    }
-
-    const enum QueryStatus {
-        RUNNING = 'RUNNING',
-        ABORTING = 'ABORTING',
-        SUCCESS = 'SUCCESS',
-        FAILED_WITH_ERROR = 'FAILED_WITH_ERROR',
-        ABORTED = 'ABORTED',
-        QUEUED = 'QUEUED',
-        FAILED_WITH_INCIDENT = 'FAILED_WITH_INCIDENT',
-        DISCONNECTED = 'DISCONNECTED',
-        RESUMING_WAREHOUSE = 'RESUMING_WAREHOUSE',
-        // purposeful typo.Is present in QueryDTO.java
-        QUEUED_REPAIRING_WAREHOUSE = 'QUEUED_REPARING_WAREHOUSE',
-        RESTARTED = 'RESTARTED',
-        BLOCKED = 'BLOCKED',
-        NO_DATA = 'NO_DATA',
-    }
-
-    const enum ErrorCode {
+    enum ErrorCode {
         // 400001
         ERR_INTERNAL_ASSERT_FAILED = 400001,
         ERR_UNSUPPORTED_NODE_JS_VERSION = 400002,
@@ -74,6 +30,8 @@ declare module '@naturalcycles/snowflake-sdk' {
         ERR_GLOBAL_CONFIGURE_INVALID_JSON_PARSER = 403004,
         ERR_GLOBAL_CONFIGURE_INVALID_XML_PARSER = 403005,
         ERR_GLOBAL_CONFIGURE_INVALID_KEEP_ALIVE = 403006,
+        ERR_GLOBAL_CONFIGURE_INVALID_CUSTOM_CREDENTIAL_MANAGER = 403007,
+        ERR_GLOBAL_CONFIGURE_INVALID_USE_ENV_PROXY = 403008,
 
         // 404001
         ERR_CONN_CREATE_MISSING_OPTIONS = 404001,
@@ -123,14 +81,22 @@ declare module '@naturalcycles/snowflake-sdk' {
         ERR_CONN_CREATE_INVALID_ACCOUNT_REGEX = 404045,
         ERR_CONN_CREATE_INVALID_REGION_REGEX = 404046,
         ERR_CONN_CREATE_INVALID_DISABLE_CONSOLE_LOGIN = 404047,
+        ERR_CONN_CREATE_INVALID_FORCE_GCP_USE_DOWNSCOPED_CREDENTIAL = 404048,
+        ERR_CONN_CREATE_INVALID_REPRESENT_NULL_AS_STRING_NULL = 404050,
+        ERR_CONN_CREATE_INVALID_DISABLE_SAML_URL_CHECK = 404051,
+        ERR_CONN_CREATE_INVALID_CLIENT_REQUEST_MFA_TOKEN = 404052,
+        ERR_CONN_CREATE_MISSING_HOST = 404053,
+        ERR_CONN_CREATE_INVALID_HOST = 404054,
+        ERR_CONN_CREATE_INVALID_PASSCODE_IN_PASSWORD = 404055,
+        ERR_CONN_CREATE_INVALID_PASSCODE = 404056,
 
         // 405001
         ERR_CONN_CONNECT_INVALID_CALLBACK = 405001,
 
         // 405501
-        ERR_CONN_CONNECT_STATUS_CONNECTING = 405501, // sql state: 08002
-        ERR_CONN_CONNECT_STATUS_CONNECTED = 405502, // sql state: 08002
-        ERR_CONN_CONNECT_STATUS_DISCONNECTED = 405503, // sql state: 08002
+        ERR_CONN_CONNECT_STATUS_CONNECTING = 405501, // sql state= 08002
+        ERR_CONN_CONNECT_STATUS_CONNECTED = 405502, // sql state= 08002
+        ERR_CONN_CONNECT_STATUS_DISCONNECTED = 405503, // sql state= 08002
         ERR_CONN_CREATE_INVALID_AUTH_CONNECT = 405504,
         ERR_CONN_CONNECT_INVALID_CLIENT_CONFIG = 405505,
 
@@ -142,8 +108,8 @@ declare module '@naturalcycles/snowflake-sdk' {
         ERR_CONN_DESTROY_STATUS_DISCONNECTED = 406502,
 
         // 407001
-        ERR_CONN_REQUEST_STATUS_PRISTINE = 407001, // sql state: 08003
-        ERR_CONN_REQUEST_STATUS_DISCONNECTED = 407002, // sql state: 08003
+        ERR_CONN_REQUEST_STATUS_PRISTINE = 407001, // sql state= 08003
+        ERR_CONN_REQUEST_STATUS_DISCONNECTED = 407002, // sql state= 08003
 
         // 408001
         ERR_CONN_DESERIALIZE_MISSING_CONFIG = 408001,
@@ -165,6 +131,7 @@ declare module '@naturalcycles/snowflake-sdk' {
         ERR_CONN_EXEC_STMT_INVALID_FETCH_AS_STRING_VALUES = 409012,
         ERR_CONN_EXEC_STMT_INVALID_REQUEST_ID = 409013,
         ERR_CONN_EXEC_STMT_INVALID_ASYNC_EXEC = 409014,
+        ERR_CONN_EXEC_STMT_INVALID_DESCRIBE_ONLY = 409015,
 
         // 410001
         ERR_CONN_FETCH_RESULT_MISSING_OPTIONS = 410001,
@@ -212,7 +179,7 @@ declare module '@naturalcycles/snowflake-sdk' {
         // 460001
         ERR_GET_RESPONSE_QUERY_INVALID_UUID = 460001,
         ERR_GET_RESULTS_QUERY_ID_NO_DATA = 460002,
-        ERR_GET_RESULTS_QUERY_ID_NOT_SUCCESS_STATUS = 460003,
+        ERR_GET_RESULTS_QUERY_ID_NOT_SUCCESS_STATUS = 460003
     }
 
     export type CustomParser = (rawColumnValue: string) => any;
@@ -220,29 +187,47 @@ declare module '@naturalcycles/snowflake-sdk' {
     export type InsertBinds = Bind[][];
     export type Binds = Bind[] | InsertBinds;
     export type StatementCallback = (err: SnowflakeError | undefined, stmt: RowStatement | FileAndStageBindStatement, rows?: Array<any> | undefined) => void;
-    export type ConnectionCallback = (err: SnowflakeError | undefined, conn: Connection) => void
+    export type ConnectionCallback = (err: SnowflakeError | undefined, conn: Connection) => void;
+    export type RowMode = "object" | "array" | "object_with_renamed_duplicated_columns";
+    export type LogLevel = "ERROR" | "WARN" | "INFO" | "DEBUG" | "TRACE" | "OFF";
+    export type DataType = "String" | "Boolean" | "Number" | "Date" | "JSON" | "Buffer";
+    export type QueryStatus = "RUNNING" | "ABORTING" | "SUCCESS" | "FAILED_WITH_ERROR" | "ABORTED" | "QUEUED" | "FAILED_WITH_INCIDENT" | "DISCONNECTED" | "RESUMING_WAREHOUSE" | "QUEUED_REPARING_WAREHOUSE" | "RESTARTED" | "BLOCKED" | "NO_DATA";
+    export type StatementStatus = "fetching" | "complete";
+
     type PoolOptions = import('generic-pool').Options;
     type Readable = import('stream').Readable;
     type Pool<T> = import('generic-pool').Pool<T>;
+
+    export interface XMlParserConfigOption {
+        ignoreAttributes?: boolean;
+        alwaysCreateTextNode?: boolean;
+        attributeNamePrefix?: string;
+        attributesGroupName?: false | null | string;
+    }
 
     export interface ConfigureOptions {
         /**
          * Set the logLevel and logFilePath,
          * https://docs.snowflake.com/en/developer-guide/node-js/nodejs-driver-logs.
          */
-        logLevel?: LogLevel | undefined;
-        logFilePath?: string | undefined;
+        logLevel?: LogLevel;
+        logFilePath?: string;
+
+        /**
+         * additionalLogToConsole is a Boolean value that indicates whether to send log messages also to the console when a filePath is specified.
+         */
+        additionalLogToConsole?: boolean | null;
 
         /**
          * Check the ocsp checking is off.
          */
-        insecureConnect?: boolean | undefined;
+        insecureConnect?: boolean;
 
         /**
          * The default value is true.
          * Detailed information: https://docs.snowflake.com/en/user-guide/ocsp.
          */
-        ocspFailOpen?: boolean | undefined;
+        ocspFailOpen?: boolean;
 
         /**
          * The Snowflake Node.js driver provides the following default parsers for processing JSON and XML data in result sets.
@@ -251,10 +236,24 @@ declare module '@naturalcycles/snowflake-sdk' {
         jsonColumnVariantParser?: CustomParser;
         xmlColumnVariantParser?: CustomParser;
 
+        xmlParserConfig?: XMlParserConfigOption;
+
         /**
          * Specifies whether to enable keep-alive functionality on the socket immediately after receiving a new connection request.
          */
-        keepAlive?: boolean,
+        keepAlive?: boolean;
+
+        /**
+         * If the user wants to use their own credential manager for SSO or MFA token caching,
+         * pass the custom credential manager to this option.
+         */
+        customCredentialManager?: object;
+
+        /**
+         * The option whether the driver loads the proxy information from the environment variable or not
+         * The default value is true. If false, the driver will not get the proxy from the environment variable.
+         */
+        useEnvProxy?: boolean;
     }
 
     export interface ConnectionOptions {
@@ -302,14 +301,40 @@ declare module '@naturalcycles/snowflake-sdk' {
         authenticator?: string;
 
         /**
+         * Specifies the timeout, in milliseconds, for browser activities related to SSO authentication. The default value is 120000 (milliseconds).
+         */
+        browserActionTimeout?: number;
+
+        /**
+         * Specifies the lists of hosts that the driver should connect to directly, bypassing the proxy server (e.g. *.amazonaws.com to bypass Amazon S3 access). For multiple hosts, separate the hostnames with a pipe symbol (|).
+         * You can also use an asterisk as a wild card. For example: noProxy: "*.amazonaws.com|*.my_company.com"
+         */
+        noProxy?: string;
+
+        /**
          * Specifies the hostname of an authenticated proxy server.
          */
         proxyHost?: string;
 
         /**
+         * Specifies the username used to connect to an authenticated proxy server.
+         */
+        proxyUser?: string;
+
+        /**
          * Specifies the password for the user specified by proxyUser.
          */
+        proxyPassword?: string;
+
+        /**
+         * Specifies the port of an authenticated proxy server.
+         */
         proxyPort?: number;
+
+        /**
+         * Specifies the protocol used to connect to the authenticated proxy server. Use this property to specify the HTTP protocol: http or https.
+         */
+        proxyProtocol?: string;
 
         /**
          * Specifies the serviceName.
@@ -352,6 +377,11 @@ declare module '@naturalcycles/snowflake-sdk' {
         schema?: string;
 
         /**
+         * Number of milliseconds to keep the connection alive with no response. Default: 90000 (1 minute 30 seconds).
+         */
+        timeout?: number;
+
+        /**
          * The default security role to use for the session after connecting.
          */
         role?: string;
@@ -369,7 +399,7 @@ declare module '@naturalcycles/snowflake-sdk' {
         /**
          * return the following data types as strings: Boolean, Number, Date, Buffer, and JSON.
          */
-        fetchAsString?: DataType[] | undefined;
+        fetchAsString?: DataType[];
 
         /**
          * Path to the client configuration file associated with the easy logging feature.
@@ -397,20 +427,91 @@ declare module '@naturalcycles/snowflake-sdk' {
         arrayBindingThreshold?: number;
 
         /**
-         * Set whether the retry reason is included or not in the retry url.
-         */
-        includeRetryReason?: boolean;
-
-        /**
          * The max login timeout value. This value is either 0 or over 300.
          */
         retryTimeout?: number;
 
         /**
+          * The option to skip the SAML URL check in the Okta authentication
+          */
+        disableSamlUrlCheck?: boolean;
+
+        /**
+          * The option to fetch all the null values in the columns as the string null.
+          */
+        representNullAsStringNull?: boolean;
+
+        /**
+         * Number of threads for clients to use to prefetch large result sets. Valid values: 1-10.
+         */
+        resultPrefetch?: number;
+
+        /**
+         * Set whether the retry reason is included or not in the retry url.
+         */
+        includeRetryReason?: boolean;
+
+        /**
+         * Number of retries for the login request.
+         */
+        sfRetryMaxLoginRetries?: number;
+
+        /**
+         * The option to throw an error on the bind stage if this is enabled.
+         */
+        forceStageBindError?: number;
+
+        /**
+         * The option to disable the query context cache.
+         */
+        disableQueryContextCache?: boolean;
+
+        /**
+         * The option to disable GCS_USE_DOWNSCOPED_CREDENTIAL session parameter
+         */
+        gcsUseDownscopedCredential?: boolean;
+
+        /**
          * The option to use https request only for the snowflake server if other GCP metadata or configuration is already set on the machine.
          * The default value is false.
          */
-        forceGCPUseDownscopedCredential?: boolean
+        forceGCPUseDownscopedCredential?: boolean;
+
+        /**
+         * The option to disable the web authentication console login.
+         */
+        disableConsoleLogin?: boolean;
+
+        /**
+         *  Turn on the validation function which checks whether all the connection configuration from users are valid or not.
+         */
+        validateDefaultParameters?: boolean;
+
+        /**
+         *  The option to set the location where the token will be saved for the token authentication (MFA and SSO).
+         *  The path must include the folder path only.
+         */
+        credentialCacheDir?: string;
+
+        /**
+         * The option to enable the MFA token. The default value is false.
+         */
+        clientRequestMFAToken?: boolean;
+
+        /**
+         * The option to enable the SSO token. The default value is false.
+         */
+        clientStoreTemporaryCredential?: boolean;
+
+        /**
+         *  The option to include the passcode from DUO into the password.
+         */
+        passcodeInPassword?: boolean;
+
+        /**
+         *  The option to pass passcode from DUO.
+         */
+        passcode?: string;
     }
 
     export interface Connection {
@@ -466,17 +567,22 @@ declare module '@naturalcycles/snowflake-sdk' {
         /**
          * Gets the status of the query based on queryId.
          */
-        getQueryStatus(queryId: string): string;
+        getQueryStatus(queryId: string): Promise<string>;
 
         /**
          * Gets the status of the query based on queryId and throws if there's an error.
          */
-        getQueryStatusThrowIfError(queryId: string): string;
+        getQueryStatusThrowIfError(queryId: string): Promise<string>;
 
         /**
          *  Gets the results from a previously ran query based on queryId.
          */
-        getResultsFromQueryId(options: StatementOption): RowStatement | FileAndStageBindStatement;
+        getResultsFromQueryId(options: StatementOption): Promise<RowStatement | FileAndStageBindStatement>;
+
+        /**
+         * Returns the value of the SERVICE_NAME parameter
+         */
+        getServiceName(): string;
 
         /**
          * Checks whether the given status is currently running.
@@ -487,11 +593,21 @@ declare module '@naturalcycles/snowflake-sdk' {
          * Checks whether the given status means that there has been an error.
          */
         isAnError(): boolean;
+
+        /*
+         * Returns a serialized version of this connection.
+         */
+        serialize(): string;
     }
 
     export interface StatementOption {
         sqlText: string;
         complete?: StatementCallback;
+
+        /**
+         * Enable asynchronous queries by including asyncExec: true in the connection.execute method.
+         */
+        asyncExec?: boolean;
 
         /**
          * The requestId is for resubmitting requests.
@@ -526,6 +642,22 @@ declare module '@naturalcycles/snowflake-sdk' {
          * Detailed information: https://docs.snowflake.com/en/developer-guide/node-js/nodejs-driver-execute.
          */
         parameters?: Record<string, any>;
+
+        /**
+         * Returns the rowMode string value ('array', 'object' or 'object_with_renamed_duplicated_columns'). Could be null or undefined.
+         */
+        rowMode?: RowMode;
+
+        /**
+         * Current working directory to use for GET/PUT execution using relative paths from a client location
+         * that is different from the connector directory.
+         */
+        cwd?: string;
+
+        /**
+         * `true` to enable a describe only query.
+         */
+        describeOnly?: boolean;
     }
 
     export interface RowStatement {
@@ -592,10 +724,13 @@ declare module '@naturalcycles/snowflake-sdk' {
         getQueryId(): string;
 
         /**
+         *  Cancels this statement if possible.
+         */
+        cancel(callback?: StatementCallback): void;
+
+        /**
          * Streams the rows in this statement's result. If start and end values are
          * specified, only rows in the specified range are streamed.
-         *
-         * @param {Object} options
          */
         streamRows(options?: StreamOptions): Readable;
 
@@ -603,8 +738,6 @@ declare module '@naturalcycles/snowflake-sdk' {
          * Fetches the rows in this statement's result and invokes each()
          * callback on each row. If start and end values are specified each()
          * callback will only be invoked on rows in the specified range.
-         *
-         * @param {Object} options
          */
         fetchRows(options?: StreamOptions): Readable;
     }
@@ -711,6 +844,11 @@ declare module '@naturalcycles/snowflake-sdk' {
         isArray(): boolean;
 
         /**
+         * Returns true if this column is type MAP.
+         */
+        isMap(): boolean;
+
+        /**
          * Returns the value of this column in a row.
          */
         getRowValue(row: object): any;
@@ -759,7 +897,7 @@ declare module '@naturalcycles/snowflake-sdk' {
     export interface StreamOptions {
         start?: number;
         end?: number;
-        fetchAsString?: DataType[] | undefined;
+        fetchAsString?: DataType[];
     }
 
     /**

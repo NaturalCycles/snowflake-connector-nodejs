@@ -35,8 +35,8 @@ describe('ConnectionConfig: basic', function () {
       },
       {
         name: 'missing username with SNOWFLAKE authenticator',
-        options: 
-          { 
+        options:
+          {
             authenticator: 'SNOWFLAKE'
           },
         errorCode: ErrorCodes.ERR_CONN_CREATE_MISSING_USERNAME
@@ -54,8 +54,8 @@ describe('ConnectionConfig: basic', function () {
       },
       {
         name: 'missing username with SNOWFLAKE_JWT authenticator',
-        options: 
-          { 
+        options:
+          {
             authenticator: 'SNOWFLAKE_JWT'
           },
         errorCode: ErrorCodes.ERR_CONN_CREATE_MISSING_USERNAME
@@ -671,6 +671,17 @@ describe('ConnectionConfig: basic', function () {
         errorCode: ErrorCodes.ERR_CONN_CREATE_INVALID_INCLUDE_RETRY_REASON,
       },
       {
+        name: 'invalid clientStoreTemporaryCredential',
+        options:
+        {
+          username: 'username',
+          password: 'password',
+          account: 'account',
+          clientStoreTemporaryCredential: 'invalid'
+        },
+        errorCode: ErrorCodes.ERR_CONN_CREATE_INVALID_CLIENT_STORE_TEMPORARY_CREDENTIAL,
+      },
+      {
         name: 'invalid clientConfigFile',
         options: {
           account: 'account',
@@ -689,6 +700,16 @@ describe('ConnectionConfig: basic', function () {
           retryTimeout: 'invalid'
         },
         errorCode: ErrorCodes.ERR_CONN_CREATE_INVALID_MAX_LOGIN_TIMEOUT
+      },
+      {
+        name: 'invalid clientRequestMFAToken',
+        options: {
+          username: 'username',
+          password: 'password',
+          account: 'account',
+          clientRequestMFAToken: 'invalid'
+        },
+        errorCode: ErrorCodes.ERR_CONN_CREATE_INVALID_CLIENT_REQUEST_MFA_TOKEN,
       },
       {
         name: 'invalid disableConsoleLogin',
@@ -731,6 +752,28 @@ describe('ConnectionConfig: basic', function () {
           disableSamlURLCheck: 'invalid'
         },
         errorCode: ErrorCodes.ERR_CONN_CREATE_INVALID_DISABLE_SAML_URL_CHECK
+      },
+      {
+        name: 'invalid passcodeInPassword',
+
+        options: {
+          account: 'account',
+          username: 'username',
+          password: 'password',
+          passcodeInPassword: 'invalid'
+        },
+        errorCode: ErrorCodes.ERR_CONN_CREATE_INVALID_PASSCODE_IN_PASSWORD
+      },
+      {
+        name: 'invalid passcode',
+
+        options: {
+          account: 'account',
+          username: 'username',
+          password: 'password',
+          passcode: 123456
+        },
+        errorCode: ErrorCodes.ERR_CONN_CREATE_INVALID_PASSCODE
       },
     ];
 
@@ -923,7 +966,7 @@ describe('ConnectionConfig: basic', function () {
           },
         options:
           {
-            accessUrl: 'https://account-123xyz.us-west-2.snowflakecomputing.com',
+            accessUrl: 'https://account-123xyz.snowflakecomputing.com',
             username: 'username',
             password: 'password',
             account: 'account-123xyz'
@@ -943,6 +986,95 @@ describe('ConnectionConfig: basic', function () {
             username: 'username',
             password: 'password',
             account: 'account'
+          }
+      },
+      {
+        name: 'china url with account and cn region',
+        input:
+          {
+            username: 'username',
+            password: 'password',
+            account: 'account-123xyz',
+            region: 'cn-north-1'
+          },
+        options:
+          {
+            accessUrl: 'https://account-123xyz.cn-north-1.snowflakecomputing.cn',
+            username: 'username',
+            password: 'password',
+            account: 'account-123xyz',
+            region: 'cn-north-1'
+          }
+      },
+      {
+        name: 'china url with account and cn region upper case',
+        input:
+          {
+            username: 'username',
+            password: 'password',
+            account: 'account-123xyz',
+            region: 'CN-NORTH-1'
+          },
+        options:
+          {
+            accessUrl: 'https://account-123xyz.CN-NORTH-1.snowflakecomputing.cn',
+            username: 'username',
+            password: 'password',
+            account: 'account-123xyz',
+            region: 'CN-NORTH-1'
+          }
+      },
+      {
+        name: 'china url with accessUrl only',
+        input:
+          {
+            accessUrl: 'https://account-123xyz.cn-north-1.snowflakecomputing.cn',
+            username: 'username',
+            password: 'password',
+          },
+        options:
+          {
+            accessUrl: 'https://account-123xyz.cn-north-1.snowflakecomputing.cn',
+            username: 'username',
+            password: 'password',
+            account: 'account-123xyz',
+          }
+      },
+
+      {
+        name: 'china url with account contains region',
+        input:
+          {
+            username: 'username',
+            password: 'password',
+            account: 'account-123xyz.cn-north-1',
+          },
+        options:
+          {
+            accessUrl: 'https://account-123xyz.cn-north-1.snowflakecomputing.cn',
+            username: 'username',
+            password: 'password',
+            account: 'account-123xyz',
+            region: 'cn-north-1'
+          }
+      },
+      {
+        name: 'china url using host',
+        input:
+          {
+            host: 'account-123xyz.cn-north-1.snowflakecomputing.cn',
+            username: 'username',
+            password: 'password',
+            account: 'account-123',
+            region: 'ca-central-1'
+          },
+        options:
+          {
+            accessUrl: 'https://account-123xyz.cn-north-1.snowflakecomputing.cn',
+            username: 'username',
+            password: 'password',
+            account: 'account-123',
+            region: 'ca-central-1'
           }
       },
       {
@@ -1163,6 +1295,22 @@ describe('ConnectionConfig: basic', function () {
           }
       },
       {
+        name: 'two letter account',
+        input:
+                {
+                  username: 'username',
+                  password: 'password',
+                  account: 'pm'
+                },
+        options:
+                {
+                  accessUrl: 'https://pm.snowflakecomputing.com',
+                  username: 'username',
+                  password: 'password',
+                  account: 'pm'
+                }
+      },
+      {
         name: 'only one letter account and subdomain',
         input:
           {
@@ -1179,6 +1327,23 @@ describe('ConnectionConfig: basic', function () {
             account: 'a',
             region: 'b'
           }
+      },
+      {
+        name: 'two letter account and subdomain',
+        input:
+                {
+                  username: 'username',
+                  password: 'password',
+                  account: 'pm.ab'
+                },
+        options:
+                {
+                  accessUrl: 'https://pm.ab.snowflakecomputing.com',
+                  username: 'username',
+                  password: 'password',
+                  account: 'pm',
+                  region: 'ab'
+                }
       },
       {
         name: 'account with [-] in the middle',
@@ -1344,6 +1509,79 @@ describe('ConnectionConfig: basic', function () {
             account: 'account'
           }
       },
+      {
+        name: 'accessUrl and host no account',
+        input:
+          {
+            username: 'username',
+            password: 'password',
+            retryTimeout: 1234,
+            host: 'host.snowflakecomputing.com',
+            accessUrl: 'https://access-url.snowflakecomputing.com'
+          },
+        options:
+          {
+            accessUrl: 'https://access-url.snowflakecomputing.com',
+            username: 'username',
+            password: 'password',
+            account: 'access-url'
+          }
+      },
+      {
+        name: 'host no account',
+        input:
+          {
+            username: 'username',
+            password: 'password',
+            retryTimeout: 1234,
+            host: 'host.snowflakecomputing.com',
+          },
+        options:
+          {
+            accessUrl: 'https://host.snowflakecomputing.com',
+            username: 'username',
+            password: 'password',
+            host: 'host.snowflakecomputing.com',
+            account: 'host'
+          }
+      },
+      {
+        name: 'host and port',
+        input:
+          {
+            account: 'account',
+            username: 'username',
+            password: 'password',
+            host: 'host.snowflakecomputing.com',
+            port: 444
+          },
+        options:
+          {
+            accessUrl: 'https://host.snowflakecomputing.com:444',
+            username: 'username',
+            password: 'password',
+            account: 'account'
+          }
+      },
+      {
+        name: 'protocol, host and port',
+        input:
+          {
+            account: 'account',
+            username: 'username',
+            password: 'password',
+            host: 'host.snowflakecomputing.com',
+            port: 8082,
+            protocol: 'http'
+          },
+        options:
+          {
+            accessUrl: 'http://host.snowflakecomputing.com:8082',
+            username: 'username',
+            password: 'password',
+            account: 'account'
+          }
+      },
     ];
 
   const createItCallback = function (testCase) {
@@ -1398,7 +1636,7 @@ describe('ConnectionConfig: basic', function () {
       password: 'password',
       account: 'account'
     };
-     
+
     const testCases =
     [
       {
@@ -1410,6 +1648,24 @@ describe('ConnectionConfig: basic', function () {
         result: true,
         getter: 'getDisableSamlURLCheck',
       },
+      {
+        name: 'passcodeInPassword',
+        input: {
+          ...mandatoryOption,
+          passcodeInPassword: true,
+        },
+        result: true,
+        getter: 'getPasscodeInPassword',
+      },
+      {
+        name: 'passcode',
+        input: {
+          ...mandatoryOption,
+          passcode: '123456',
+        },
+        result: '123456',
+        getter: 'getPasscode',
+      },
     ];
 
     testCases.forEach(({ name, input, result, getter }) => {
@@ -1420,4 +1676,3 @@ describe('ConnectionConfig: basic', function () {
     });
   });
 });
-
