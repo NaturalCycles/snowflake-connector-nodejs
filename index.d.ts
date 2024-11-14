@@ -6,7 +6,7 @@
  * The snowflake-sdk module provides an instance to connect to the Snowflake server
  * @see [source] {@link https://docs.snowflake.com/en/developer-guide/node-js/nodejs-driver}
  */
-declare module 'snowflake-sdk' {
+declare module '@naturalcycles/snowflake-sdk' {
 
     enum ErrorCode {
         // 400001
