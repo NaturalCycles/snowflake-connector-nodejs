@@ -1,6 +1,6 @@
 {
   "name": "@naturalcycles/snowflake-sdk",
-  "version": "1.15.0",
+  "version": "1.15.1",
   "description": "Node.js driver for Snowflake",
   "dependencies": {
     "@techteamer/ocsp": "1.0.1",
