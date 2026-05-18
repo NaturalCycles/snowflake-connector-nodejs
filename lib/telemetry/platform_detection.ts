@@ -1,5 +1,11 @@
 import http from 'node:http';
-import { STSClient, GetCallerIdentityCommand } from '@aws-sdk/client-sts';
+// Type-only import — the values are loaded lazily inside hasAwsIdentity() so that
+// consumers who haven't installed the @aws-sdk/client-sts optional peer can
+// still require this module (it's pulled in on every connection via sf.js).
+import type {
+  STSClient as _STSClient,
+  GetCallerIdentityCommand as _GetCallerIdentityCommand,
+} from '@aws-sdk/client-sts';
 
 type Detector = (abortSignal: AbortSignal) => boolean | Promise<boolean>;
 
@@ -91,6 +97,13 @@ async function isEc2Instance(abortSignal: AbortSignal): Promise<boolean> {
 }
 
 async function hasAwsIdentity(abortSignal: AbortSignal): Promise<boolean> {
+  // Optional peer — only used by WIF detection; absence is treated as "not an AWS host".
+  let STSClient: typeof _STSClient, GetCallerIdentityCommand: typeof _GetCallerIdentityCommand;
+  try {
+    ({ STSClient, GetCallerIdentityCommand } = require('@aws-sdk/client-sts'));
+  } catch {
+    return false;
+  }
   const client = new STSClient({});
   const response = await client.send(new GetCallerIdentityCommand({}), {
     abortSignal,

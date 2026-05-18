@@ -1,9 +1,17 @@
-import { GoogleAuth, Impersonated } from 'google-auth-library';
+import type {
+  GoogleAuth as _GoogleAuth,
+  Impersonated as _Impersonated,
+} from 'google-auth-library';
 import Logger from '../../logger';
 
 export const SNOWFLAKE_AUDIENCE = 'snowflakecomputing.com';
 
 export async function getGcpAttestationToken(impersonationPath?: string[]) {
+  // google-auth-library is an optional peer in the @naturalcycles/snowflake-sdk fork; load lazily.
+  const { GoogleAuth, Impersonated } = require('google-auth-library') as {
+    GoogleAuth: typeof _GoogleAuth;
+    Impersonated: typeof _Impersonated;
+  };
   const auth = new GoogleAuth();
 
   if (impersonationPath) {
