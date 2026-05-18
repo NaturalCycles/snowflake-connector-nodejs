@@ -1,8 +1,10 @@
+@Library('pipeline-utils')
+import com.snowflake.DevEnvUtils
 import groovy.json.JsonOutput
 
 
 timestamps {
-  node('regular-memory-node') {
+  node('regular-memory-node-snowos') {
     stage('checkout') {
       scmInfo = checkout scm
       println("${scmInfo}")
@@ -10,11 +12,18 @@ timestamps {
       env.GIT_COMMIT = scmInfo.GIT_COMMIT
     }
 
+    stage('Authenticate Artifactory') {
+      script {
+        new DevEnvUtils().withSfCli {
+          sh "sf artifact oci auth"
+        }
+      }
+    }
+
     stage('Build') {
       withCredentials([
         usernamePassword(credentialsId: '063fc85b-62a6-4181-9d72-873b43488411', usernameVariable: 'AWS_ACCESS_KEY_ID', passwordVariable: 'AWS_SECRET_ACCESS_KEY'),
-        string(credentialsId: 'a791118f-a1ea-46cd-b876-56da1b9bc71c',variable: 'NEXUS_PASSWORD')
-        ]) {
+      ]) {
         sh '''\
         |#!/bin/bash -e
         |export GIT_BRANCH=${GIT_BRANCH}
@@ -23,24 +32,79 @@ timestamps {
         '''.stripMargin()
       }
     }
-    params = [
-      string(name: 'svn_revision', value: 'main'),
-      string(name: 'branch', value: 'main'),
-      string(name: 'client_git_commit', value: scmInfo.GIT_COMMIT),
-      string(name: 'client_git_branch', value: scmInfo.GIT_BRANCH),
-      string(name: 'TARGET_DOCKER_TEST_IMAGE', value: 'nodejs-chainguard-node18'),
-      string(name: 'parent_job', value: env.JOB_NAME),
-      string(name: 'parent_build_number', value: env.BUILD_NUMBER)
-    ]
-    stage('Test') {
-      build job: 'RT-LanguageNodeJS-PC',parameters: params
-    }
+
+    parallel(
+      'Test': {
+        stage('Test') {
+          def params = [
+            string(name: 'branch', value: 'main'),
+            string(name: 'client_git_commit', value: scmInfo.GIT_COMMIT),
+            string(name: 'client_git_branch', value: scmInfo.GIT_BRANCH),
+            string(name: 'TARGET_DOCKER_TEST_IMAGE', value: 'nodejs-chainguard-node18'),
+            string(name: 'parent_job', value: env.JOB_NAME),
+            string(name: 'parent_build_number', value: env.BUILD_NUMBER)
+          ]
+          build job: 'RT-LanguageNodeJS-PC', parameters: params
+        }
+      },
+      'Test Authentication': {
+        stage('Test Authentication') {
+          withCredentials([
+            string(credentialsId: 'sfctest0-parameters-secret', variable: 'PARAMETERS_SECRET')
+          ]) {
+            sh '''\
+              |#!/bin/bash -e
+              |$WORKSPACE/ci/test_authentication.sh
+              '''.stripMargin()
+          }
+        }
+      },
+      'Test WIF Auth': {
+        stage('Test WIF Auth') {
+          withCredentials([
+            string(credentialsId: 'sfctest0-parameters-secret', variable: 'PARAMETERS_SECRET'),
+          ]) {
+            sh '''\
+            |#!/bin/bash -e
+            |$WORKSPACE/ci/test_wif.sh
+            '''.stripMargin()
+          }
+        }
+      },
+      'Test Revocation Validation': {
+        stage('Test Revocation Validation') {
+          withCredentials([
+            usernamePassword(credentialsId: 'jenkins-snowflakedb-github-app',
+              usernameVariable: 'GITHUB_USER',
+              passwordVariable: 'GITHUB_TOKEN')
+          ]) {
+            try {
+              sh '''\
+              |#!/bin/bash -e
+              |chmod +x $WORKSPACE/ci/test_revocation.sh
+              |$WORKSPACE/ci/test_revocation.sh
+              '''.stripMargin()
+            } finally {
+              archiveArtifacts artifacts: 'revocation-results.json,revocation-report.html', allowEmptyArchive: true
+              publishHTML(target: [
+                allowMissing: true,
+                alwaysLinkToLastBuild: true,
+                keepAll: true,
+                reportDir: '.',
+                reportFiles: 'revocation-report.html',
+                reportName: 'Revocation Validation Report'
+              ])
+            }
+          }
+        }
+      }
+    )
   }
 }
 
 
 pipeline {
-  agent { label 'regular-memory-node' }
+  agent { label 'regular-memory-node-snowos' }
   options { timestamps() }
   environment {
     COMMIT_SHA_LONG = sh(returnStdout: true, script: "echo \$(git rev-parse " + "HEAD)").trim()
@@ -61,7 +125,7 @@ pipeline {
 }
 
 def wgetUpdateGithub(String state, String folder, String targetUrl, String seconds) {
-    def ghURL = "https://api.github.com/repos/snowflakedb/snowflake-connector-nodejs/statuses/$COMMIT_SHA_LONG"
-    def data = JsonOutput.toJson([state: "${state}", context: "jenkins/${folder}",target_url: "${targetUrl}"])
-    sh "wget ${ghURL} --spider -q --header='Authorization: token $GIT_PASSWORD' --post-data='${data}'"
+  def ghURL = "https://api.github.com/repos/snowflakedb/snowflake-connector-nodejs/statuses/$COMMIT_SHA_LONG"
+  def data = JsonOutput.toJson([state: "${state}", context: "jenkins/${folder}", target_url: "${targetUrl}"])
+  sh "wget ${ghURL} --spider -q --header='Authorization: token $GIT_PASSWORD' --post-data='${data}'"
 }

@@ -1,7 +1,3 @@
-/*
- * Copyright (c) 2015-2024 Snowflake Computing Inc. All rights reserved.
- */
-
 const HttpsAgent = require('https').Agent;
 const SocketUtil = require('../../../lib/agent/socket_util');
 const Errors = require('../../../lib/errors');
@@ -19,7 +15,7 @@ function HttpsMockAgentOcspRevoked(options) {
     return SocketUtil.secureSocket(socket, options.host, null, {
       validateCertChain: function (cert, cb) {
         cb(Errors.createOCSPError(ErrorCodes.ERR_OCSP_REVOKED));
-      }
+      },
     });
   };
   return agent;
@@ -37,7 +33,7 @@ function HttpsMockAgentOcspUnkwown(options) {
     return SocketUtil.secureSocket(socket, options.host, null, {
       validateCertChain: function (cert, cb) {
         cb(Errors.createOCSPError(ErrorCodes.ERR_OCSP_UNKNOWN));
-      }
+      },
     });
   };
   return agent;
@@ -55,7 +51,7 @@ function HttpsMockAgentOcspInvalid(options) {
     return SocketUtil.secureSocket(socket, options.host, null, {
       validateCertChain: function (cert, cb) {
         cb(Errors.createOCSPError(ErrorCodes.ERR_OCSP_INVALID_VALIDITY));
-      }
+      },
     });
   };
   return agent;
@@ -64,5 +60,5 @@ function HttpsMockAgentOcspInvalid(options) {
 module.exports = {
   HttpsMockAgentOcspRevoked: HttpsMockAgentOcspRevoked,
   HttpsMockAgentOcspUnkwown: HttpsMockAgentOcspUnkwown,
-  HttpsMockAgentOcspInvalid: HttpsMockAgentOcspInvalid
+  HttpsMockAgentOcspInvalid: HttpsMockAgentOcspInvalid,
 };

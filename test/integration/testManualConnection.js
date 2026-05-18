@@ -1,258 +1,40 @@
-/*
- * Copyright (c) 2015-2024 Snowflake Computing Inc. All rights reserved.
- */
-
-const snowflake = require('./../../lib/snowflake');
-const async = require('async');
+const snowflake = require('./../../lib/snowflake').default;
 const assert = require('assert');
 const connOption = require('./connectionOptions');
 const testUtil = require('./testUtil');
 const Logger = require('../../lib/logger');
 const Util = require('../../lib/util');
-const JsonCredentialManager = require('../../lib/authentication/secure_storage/json_credential_manager');
+const {
+  JsonCredentialManager,
+} = require('../../lib/authentication/secure_storage/json_credential_manager');
 
 if (process.env.RUN_MANUAL_TESTS_ONLY === 'true') {
   describe('Run manual tests', function () {
-    describe('Connection test - external browser', function () {
-      it('Simple Connect', function (done) {
-        const connection = snowflake.createConnection(
-          connOption.externalBrowser
-        );
-
-        connection.connectAsync(function (err, connection) {
-          try {
-            assert.ok(connection.isUp(), 'not active');
-            testUtil.destroyConnection(connection, function () {
-              try {
-                assert.ok(!connection.isUp(), 'not active');
-                done();
-              } catch (err) {
-                done(err);
-              }
-            });
-          } catch (err) {
-            done(err);
-          }
-        });
-      });
-
-      it('Connect - external browser timeout', function (done) {
-        const connection = snowflake.createConnection(
-          connOption.externalBrowserWithShortTimeout
-        );
-
-        connection.connectAsync(function (err) {
-          try {
-            const browserActionTimeout =
-              connOption.externalBrowserWithShortTimeout.browserActionTimeout;
-            assert.ok(
-              err,
-              `Browser action timed out after ${browserActionTimeout} ms.`
-            );
-            done();
-          } catch (err) {
-            done(err);
-          }
-        });
-      });
-
-      it('Mismatched Username', function (done) {
-        const connection = snowflake.createConnection(
-          connOption.externalBrowserMismatchUser
-        );
-        connection.connectAsync(function (err) {
-          try {
-            assert.ok(
-              err,
-              'Logged in with different user than one on connection string'
-            );
-            assert.equal(
-              'The user you were trying to authenticate as differs from the user currently logged in at the IDP.',
-              err['message']
-            );
-            done();
-          } catch (err) {
-            done(err);
-          }
-        });
-      });
-    });
-
-    describe('Connection - ID Token authenticator', function () {
-      const connectionOption = { ...connOption.externalBrowser, clientStoreTemporaryCredential: true };
-      const key = Util.buildCredentialCacheKey(connectionOption.host, connectionOption.username, 'ID_TOKEN');
-      const defaultCredentialManager = new JsonCredentialManager();
-      let oldToken;
-      before( async () => {
-        await defaultCredentialManager.remove(key);
-      });
-
-      it('test - obtain the id token from the server and save it on the local storage', function (done) {
-        const connection = snowflake.createConnection(connectionOption);
-        connection.connectAsync(function (err) {
-          try {
-            assert.ok(!err);
-            done();
-          } catch (err){
-            done(err);
-          }
-        });
-      });
-
-      it('test - the token is saved in the credential manager correctly', function (done) {
-        defaultCredentialManager.read(key).then((idToken) => {
-          try {
-            oldToken = idToken;
-            assert.notStrictEqual(idToken, null);
-            done();
-          } catch (err){
-            done(err);
-          }
-        });
-      });
-
-
-      // Web Browser should not be open.
-      it('test - id token authentication',  function (done) {
-        const idTokenConnection = snowflake.createConnection(connectionOption);
-        try {
-          idTokenConnection.connectAsync(function (err) {
-            assert.ok(!err);
-            done();
-          });
-        } catch (err) {
-          done(err);
-        }
-      });
-
-      // Web Browser should be open.
-      it('test - id token reauthentication', function (done) {
-        defaultCredentialManager.write(key, '1234').then(() => {
-          const wrongTokenConnection = snowflake.createConnection(connectionOption);
-          wrongTokenConnection.connectAsync(function (err) {
-            assert.ok(!err);
-            done();
-          });
-        });
-      });
-
-      //Compare two idToken. Those two should be different.
-      it('test - the token is refreshed', function (done) {
-        oldToken = undefined;
-        defaultCredentialManager.read(key).then((idToken) => {
-          try {
-            assert.notStrictEqual(idToken, oldToken);
-            done();
-          } catch (err) {
-            done(err);
-          }
-        });
-      });
-    });
-
-    describe('Connection test - oauth', function () {
-      it('Simple Connect', function (done) {
-        const connection = snowflake.createConnection(connOption.oauth);
-
-        async.series([
-          function (callback) {
-            connection.connect(function (err) {
-              done(err);
-              assert.ok(!err, JSON.stringify(err));
-              callback();
-            });
-          },
-          function (callback) {
-            assert.ok(connection.isUp(), 'not active');
-            callback();
-          },
-          function (callback) {
-            connection.destroy(function (err) {
-              assert.ok(!err, JSON.stringify(err));
-              callback();
-            });
-          },
-          function (callback) {
-            assert.ok(!connection.isUp(), 'still active');
-            callback();
-          },
-        ]);
-      });
-
-      it('Mismatched Username', function (done) {
-        const connection = snowflake.createConnection(
-          connOption.oauthMismatchUser
-        );
-        connection.connect(function (err) {
-          try {
-            assert.ok(
-              err,
-              'Logged in with different user than one on connection string'
-            );
-            assert.equal(
-              'The user you were trying to authenticate as differs from the user tied to the access token.',
-              err['message']
-            );
-            done();
-          } catch (err) {
-            done(err);
-          }
-        });
-      });
-    });
-
-    describe('Connection test - okta', function () {
-      it('Simple Connect', function (done) {
-        const connection = snowflake.createConnection(connOption.okta);
-
-        async.series([
-          function (callback) {
-            connection.connectAsync(function (err) {
-              done(err);
-              assert.ok(!err, JSON.stringify(err));
-              callback();
-            });
-          },
-          function (callback) {
-            assert.ok(connection.isUp(), 'not active');
-            callback();
-          },
-          function (callback) {
-            connection.destroy(function (err) {
-              assert.ok(!err, JSON.stringify(err));
-              callback();
-            });
-          },
-          function (callback) {
-            assert.ok(!connection.isUp(), 'still active');
-            callback();
-          },
-        ]);
-      });
-    });
-
     describe('Connection - MFA authenticator with DUO', function () {
       const connectionOption = connOption.MFA;
-    
+
       it('test - authentication with passcode', function (done) {
         const connection = snowflake.createConnection(connectionOption);
         connection.connectAsync(function (err) {
           try {
             assert.ok(!err);
             done();
-          } catch (err){
+          } catch (err) {
             done(err);
           }
         });
       });
-  
+
       it.skip('test - authentication with passcodeInPassword', function (done) {
-        const connection = snowflake.createConnection({ ...connectionOption, passcodeInPassword: true });
+        const connection = snowflake.createConnection({
+          ...connectionOption,
+          passcodeInPassword: true,
+        });
         connection.connectAsync(function (err) {
           try {
             assert.ok(!err);
             done();
-          } catch (err){
+          } catch (err) {
             done(err);
           }
         });
@@ -261,26 +43,30 @@ if (process.env.RUN_MANUAL_TESTS_ONLY === 'true') {
 
     describe('Connection - MFA authenticator', function () {
       const connectionOption = { ...connOption.MFA, passcode: null, clientRequestMFAToken: true };
-      const key = Util.buildCredentialCacheKey(connectionOption.host, connectionOption.username, 'USERNAME_PASSWORD_MFA');
+      const key = Util.buildCredentialCacheKey(
+        connectionOption.host,
+        connectionOption.username,
+        'USERNAME_PASSWORD_MFA',
+      );
       const defaultCredentialManager = new JsonCredentialManager();
       let oldToken;
-  
+
       before(async () => {
         defaultCredentialManager.remove(key);
       });
-  
+
       it('test - obtain the MFA token from the server and save it on the local storage', function (done) {
         const connection = snowflake.createConnection(connectionOption);
         connection.connectAsync(function (err) {
           try {
             assert.ok(!err);
             done();
-          } catch (err){
+          } catch (err) {
             done(err);
           }
         });
       });
-  
+
       it('test - the token is saved in the credential manager correctly', function (done) {
         defaultCredentialManager.read(key).then((mfaToken) => {
           oldToken = mfaToken;
@@ -288,18 +74,17 @@ if (process.env.RUN_MANUAL_TESTS_ONLY === 'true') {
           done();
         });
       });
-  
-  
+
       // Skip the Duo authentication.
-  
-      it('test - MFA token authentication',  function (done) {
+
+      it('test - MFA token authentication', function (done) {
         const idTokenConnection = snowflake.createConnection(connectionOption);
         idTokenConnection.connectAsync(function (err) {
           assert.ok(!err);
           done();
         });
       });
-  
+
       // Duo authentication should be executed again.
       it('test - MFA token reauthentication', function (done) {
         defaultCredentialManager.write(key, '1234').then(() => {
@@ -310,7 +95,7 @@ if (process.env.RUN_MANUAL_TESTS_ONLY === 'true') {
           });
         });
       });
-  
+
       //Compare two mfaToken. Those two should be different.
       it('test - the token is refreshed', function (done) {
         defaultCredentialManager.read(key).then((mfaToken) => {
@@ -320,105 +105,106 @@ if (process.env.RUN_MANUAL_TESTS_ONLY === 'true') {
       });
     });
 
-    describe('Connection test - keypair', function () {
-      it('Simple Connect - specify private key', function (done) {
-        const connection = snowflake.createConnection(
-          connOption.keypairPrivateKey
-        );
+    describe('Connection - PROGRAMMATIC_ACCESS_TOKEN authenticator', function () {
+      const connectionOption = { ...connOption.PAT, password: 'paste PAT here' };
 
-        async.series([
-          function (callback) {
-            connection.connect(function (err) {
-              done(err);
-              assert.ok(!err, JSON.stringify(err));
-              callback();
-            });
-          },
-          function (callback) {
-            assert.ok(connection.isUp(), 'not active');
-            callback();
-          },
-          function (callback) {
-            connection.destroy(function (err) {
-              assert.ok(!err, JSON.stringify(err));
-              callback();
-            });
-          },
-          function (callback) {
-            assert.ok(!connection.isUp(), 'still active');
-            callback();
-          },
-        ]);
-      });
-
-      it('Simple Connect - specify encrypted private key path and passphrase', function (done) {
-        const connection = snowflake.createConnection(
-          connOption.keypairPathEncrypted
-        );
-
-        async.series([
-          function (callback) {
-            connection.connect(function (err) {
-              done(err);
-              assert.ok(!err, JSON.stringify(err));
-              callback();
-            });
-          },
-          function (callback) {
-            assert.ok(connection.isUp(), 'not active');
-            callback();
-          },
-          function (callback) {
-            connection.destroy(function (err) {
-              assert.ok(!err, JSON.stringify(err));
-              callback();
-            });
-          },
-          function (callback) {
-            assert.ok(!connection.isUp(), 'still active');
-            callback();
-          },
-        ]);
-      });
-
-      it('Simple Connect - specify unencrypted private key path without passphrase', function (done) {
-        const connection = snowflake.createConnection(
-          connOption.keypairPathEncrypted
-        );
-
-        async.series([
-          function (callback) {
-            connection.connect(function (err) {
-              done(err);
-              assert.ok(!err, JSON.stringify(err));
-              callback();
-            });
-          },
-          function (callback) {
-            assert.ok(connection.isUp(), 'not active');
-            callback();
-          },
-          function (callback) {
-            connection.destroy(function (err) {
-              assert.ok(!err, JSON.stringify(err));
-              callback();
-            });
-          },
-          function (callback) {
-            assert.ok(!connection.isUp(), 'still active');
-            callback();
-          },
-        ]);
-      });
-
-      it('Wrong JWT token', function (done) {
-        const connection = snowflake.createConnection(
-          connOption.keypairWrongToken
-        );
-        connection.connect(function (err) {
+      it('test - connect using PAT', function (done) {
+        const connection = snowflake.createConnection(connectionOption);
+        connection.connectAsync(function (err) {
           try {
-            assert.ok(err, 'Incorrect JWT token is passed.');
-            assert.equal('JWT token is invalid.', err['message']);
+            assert.ok(!err);
+            connection.execute({
+              sqlText: 'select 1',
+              complete: function (err) {
+                testUtil.checkError(err);
+                testUtil.destroyConnection(connection, function () {});
+                done();
+              },
+            });
+          } catch (err) {
+            done(err);
+          }
+        });
+      });
+    });
+
+    describe('Connection - AUTHORIZATION CODE authenticator ', function () {
+      it('test - connect AUTHORIZATION CODE - OKTA IDP', function (done) {
+        const connectionOption = { ...connOption.authorizationCodeOkta };
+        const connection = snowflake.createConnection(connectionOption);
+        connection.connectAsync(function (err) {
+          try {
+            assert.ok(!err);
+            connection.execute({
+              sqlText: 'select 1',
+              complete: function (err) {
+                testUtil.checkError(err);
+                testUtil.destroyConnection(connection, function () {});
+                done();
+              },
+            });
+          } catch (err) {
+            done(err);
+          }
+        });
+      });
+
+      it('test - connect AUTHORIZATION CODE - Snowflake IDP', function (done) {
+        snowflake.configure({ logLevel: 'DEBUG', disableOCSPChecks: true });
+        const connectionOption = { ...connOption.authorizationCodeSnowflake };
+        const connection = snowflake.createConnection(connectionOption);
+        connection.connectAsync(function (err) {
+          try {
+            assert.ok(!err);
+            connection.execute({
+              sqlText: 'select 1',
+              complete: function (err) {
+                testUtil.checkError(err);
+                testUtil.destroyConnection(connection, function () {});
+                done();
+              },
+            });
+          } catch (err) {
+            done(err);
+          }
+        });
+      });
+    });
+
+    describe('Connection - CLIENT CREDENTIALS authenticator ', function () {
+      it('test - connect CLIENT CREDENTIALS - Snowflake', function (done) {
+        const connectionOption = { ...connOption.clientCredentialSnowflake };
+        const connection = snowflake.createConnection(connectionOption);
+        connection.connectAsync(function (err) {
+          try {
+            assert.ok(!err);
+            connection.execute({
+              sqlText: 'select 1',
+              complete: function (err) {
+                testUtil.checkError(err);
+                testUtil.destroyConnection(connection, function () {});
+                done();
+              },
+            });
+          } catch (err) {
+            done(err);
+          }
+        });
+      });
+
+      it('test - connect CLIENT CREDENTIALS - inconsistent username', function (done) {
+        const connectionOption = {
+          ...connOption.clientCredentialSnowflake,
+          username: 'inconsistentUser',
+        };
+        const connection = snowflake.createConnection(connectionOption);
+        connection.connectAsync(function (err) {
+          try {
+            assert(err);
+            assert.equal(
+              err.message,
+              'The user you were trying to authenticate as differs from the user tied to the access token.',
+            );
             done();
           } catch (err) {
             done(err);
@@ -459,12 +245,10 @@ if (process.env.RUN_MANUAL_TESTS_ONLY === 'true') {
             if (err) {
               throw err;
             } else {
-              stmt.streamRows()
+              stmt
+                .streamRows()
                 .on('error', function (err) {
                   throw err;
-                })
-                .on('data', function () {
-                  return;
                 })
                 .on('end', function () {
                   const end = Date.now();
@@ -472,7 +256,7 @@ if (process.env.RUN_MANUAL_TESTS_ONLY === 'true') {
                   resolve(time);
                 });
             }
-          }
+          },
         });
       });
     }
@@ -489,19 +273,23 @@ if (process.env.RUN_MANUAL_TESTS_ONLY === 'true') {
         const time = await executeSingleQuery();
         sumWithoutKeepAlive += time;
       }
-      Logger.getInstance().info(`Sum of time without keep alive: ${sumWithoutKeepAlive}. Sum of time with keep alive:: ${sumWithKeepAlive}`);
-      assert.ok(sumWithoutKeepAlive * 0.66 > sumWithKeepAlive, 'With keep alive the queries should work faster');
+      Logger.getInstance().info(
+        `Sum of time without keep alive: ${sumWithoutKeepAlive}. Sum of time with keep alive:: ${sumWithKeepAlive}`,
+      );
+      assert.ok(
+        sumWithoutKeepAlive * 0.66 > sumWithKeepAlive,
+        'With keep alive the queries should work faster',
+      );
     });
   });
 
-
   // Before run below tests you should prepare files connections.toml and token
   describe('Connection file configuration test', function () {
-    afterEach( function () {
+    afterEach(function () {
       delete process.env.SNOWFLAKE_HOME;
       delete process.env.SNOWFLAKE_DEFAULT_CONNECTION_NAME;
     });
-    beforeEach( function () {
+    beforeEach(function () {
       snowflake.configure({ logLevel: 'DEBUG' });
     });
 
@@ -564,11 +352,10 @@ if (process.env.RUN_MANUAL_TESTS_ONLY === 'true') {
                 reject(err);
               }
               resolve();
-            }
+            },
           });
         });
       });
     }
   });
-
 }

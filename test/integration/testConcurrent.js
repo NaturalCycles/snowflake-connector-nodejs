@@ -1,7 +1,3 @@
-/*
- * Copyright (c) 2015-2024 Snowflake Computing Inc. All rights reserved.
- */
-
 const async = require('async');
 const assert = require('assert');
 const testUtil = require('./testUtil');
@@ -21,7 +17,7 @@ describe('Test Concurrent Execution', function () {
         complete: function (err) {
           testUtil.checkError(err);
           done();
-        }
+        },
       });
     });
   });
@@ -55,7 +51,7 @@ describe('Test Concurrent Execution', function () {
               done();
             }
           });
-        }
+        },
       });
     }
   });
@@ -75,7 +71,7 @@ describe('Test Concurrent Execution', function () {
                 if (completedThread === numberOfThread) {
                   callback();
                 }
-              }
+              },
             );
           }
         },
@@ -83,20 +79,16 @@ describe('Test Concurrent Execution', function () {
           const numberOfThread = 10;
           let completedThread = 0;
           for (let i = 0; i < numberOfThread; i++) {
-            testUtil.executeCmd(
-              connection,
-              'drop table if exists test' + i,
-              function () {
-                completedThread++;
-                if (completedThread === numberOfThread) {
-                  callback();
-                }
+            testUtil.executeCmd(connection, 'drop table if exists test' + i, function () {
+              completedThread++;
+              if (completedThread === numberOfThread) {
+                callback();
               }
-            );
+            });
           }
-        }
+        },
       ],
-      done
+      done,
     );
   });
 
@@ -104,31 +96,30 @@ describe('Test Concurrent Execution', function () {
     const numberOfQueries = 10;
     let completedQueries = 0;
     for (let i = 0; i < numberOfQueries; i++) {
-      testUtil.createConnection()
-        .connect(function (err, conn) {
-          conn.execute({
-            sqlText: selectOrders,
-            complete: function (err, stmt) {
-              const stream = stmt.streamRows();
-              let rowCount = 0;
-              stream.on('readable', function () {
-                while (stream.read() !== null) {
-                  rowCount++;
-                }
-              });
-              stream.on('error', function (err) {
-                testUtil.checkError(err);
-              });
-              stream.on('end', function () {
-                assert.strictEqual(rowCount, sourceRowCount);
-                completedQueries++;
-                if (completedQueries === numberOfQueries) {
-                  done();
-                }
-              });
-            }
-          });
+      testUtil.createConnection().connect(function (err, conn) {
+        conn.execute({
+          sqlText: selectOrders,
+          complete: function (err, stmt) {
+            const stream = stmt.streamRows();
+            let rowCount = 0;
+            stream.on('readable', function () {
+              while (stream.read() !== null) {
+                rowCount++;
+              }
+            });
+            stream.on('error', function (err) {
+              testUtil.checkError(err);
+            });
+            stream.on('end', function () {
+              assert.strictEqual(rowCount, sourceRowCount);
+              completedQueries++;
+              if (completedQueries === numberOfQueries) {
+                done();
+              }
+            });
+          },
         });
+      });
     }
   });
 });

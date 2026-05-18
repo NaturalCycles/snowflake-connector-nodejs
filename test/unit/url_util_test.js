@@ -1,7 +1,3 @@
-/*
- * Copyright (c) 2015-2024 Snowflake Computing Inc. All rights reserved.
- */
-
 const URLUtil = require('./../../lib/url_util');
 const assert = require('assert');
 
@@ -17,7 +13,7 @@ describe('URLUtil', function () {
     assert.ok(!URLUtil.isValidURL('This is random text'));
     assert.ok(!URLUtil.isValidURL('file://TestForFile'));
   });
-    
+
   it('Encode URL', function () {
     assert.equal(URLUtil.urlEncode('Hello @World'), 'Hello+%40World');
     assert.equal(URLUtil.urlEncode('Test//String'), 'Test%2F%2FString');
