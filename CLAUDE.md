@@ -17,7 +17,20 @@ Two long-lived branches:
 
 Re-sync risks to watch for when merging upstream into `next`:
 - Upstream's `package.json` keeps adding hard cloud-SDK deps over time. Each sync must move new ones into `peerDependencies` (+ optional `peerDependenciesMeta` + duplicate in `devDependencies`).
-- Upstream writes new `.ts` files (e.g. `lib/authentication/auth_workload_identity/*.ts`, `lib/telemetry/platform_detection.ts`) with **static `import`** from cloud SDKs. The static imports compile cleanly because we have the SDKs in `devDependencies`, but at runtime a consumer who hasn't installed them will throw on first `require` of those modules. Any new code path that touches a peer SDK must be reachable *only* through a callsite that itself fails gracefully when the SDK is missing (e.g. workload-identity attestation is only called when that auth mode is selected).
+- Upstream writes new code with **static `import`/`require`** from cloud SDKs. The static imports compile cleanly because we have the SDKs in `devDependencies`, but at runtime a consumer who hasn't installed them will throw on first `require` of the module. **The lazy-require discipline is the load-bearing invariant of this fork.** Files that currently follow it (don't break them, and apply the same pattern to any new peer-SDK callsite):
+  - `lib/telemetry/platform_detection.ts` — uses `import type` only; requires `@aws-sdk/client-sts` inside `hasAwsIdentity()`. **Critical** because `lib/services/sf.js` requires this module on every connection.
+  - `lib/authentication/auth_workload_identity/attestation_aws.ts` — `import type` only; the AWS / `@smithy/*` / `@aws-crypto/sha256-js` bundle is loaded by an internal `awsSdk()` helper on first use. **Critical** because `lib/authentication/authentication.js` requires `auth_workload_identity` eagerly.
+  - `lib/authentication/auth_workload_identity/attestation_azure.ts` and `attestation_gcp.ts` — same pattern with `@azure/identity` and `google-auth-library`.
+  - `lib/file_transfer_agent/s3_util.js` — `@aws-sdk/client-s3` is required inside the `S3Util` constructor, `@smithy/node-http-handler` is required inside the proxy `if` block. **Critical** because `remote_storage_util.js` requires this module eagerly when `Statement` loads.
+  - `lib/file_transfer_agent/azure_util.js` — `@azure/storage-blob` is required inside `createClient()`. **Critical** for the same reason.
+- The pattern in TypeScript files:
+  ```ts
+  import type { STSClient as _STSClient } from '@aws-sdk/client-sts';
+  // ...inside the function that actually uses it:
+  const { STSClient } = require('@aws-sdk/client-sts') as { STSClient: typeof _STSClient };
+  ```
+  Cast to `typeof <Type>` so callers keep their type info and the response type isn't widened.
+- Verify after every upstream sync: stash `node_modules/@aws-sdk`, `@aws-crypto`, `@smithy`, `@azure`, `google-auth-library` aside, then `node -e "require('./dist'); const c = require('./dist').createConnection({account:'x',username:'u',password:'p'}); require('./dist/lib/authentication/auth_workload_identity/auth_workload_identity'); require('./dist/lib/telemetry/platform_detection');"` — must complete without `MODULE_NOT_FOUND`.
 - The TS declaration in `index.d.ts` uses `declare module '@naturalcycles/snowflake-sdk'` — single divergence point for the module name. The file is copied verbatim into `dist/index.d.ts` by `ci/build_typescript.js`.
 
 ## Commands
