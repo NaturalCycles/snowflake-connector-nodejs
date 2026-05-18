@@ -1,7 +1,3 @@
-/*
- * Copyright (c) 2015-2024 Snowflake Computing Inc. All rights reserved.
- */
-
 const { init, reset: resetEasyLoggingModule } = require('../../../lib/logger/easy_logging_starter');
 
 const assert = require('assert');
@@ -11,7 +7,7 @@ const os = require('os');
 const Logger = require('../../../lib/logger');
 require('../../../lib/snowflake'); // import of it sets up node logger
 const { exists } = require('../../../lib/util');
-const snowflake = require('../../../lib/snowflake');
+const snowflake = require('../../../lib/snowflake').default;
 const defaultConfigName = 'sf_client_config.json';
 const logLevelBefore = Logger.getInstance().getLevel();
 let tempDir = null;
@@ -27,14 +23,13 @@ after(async function () {
 afterEach(async function () {
   Logger.getInstance().configure({
     level: logLevelBefore,
-    filePath: 'snowflake.log'
+    filePath: 'snowflake.log',
   });
   await fsPromises.rm(path.join(os.homedir(), defaultConfigName), { force: true });
   resetEasyLoggingModule();
 });
 
 describe('Easy logging starter tests', function () {
-
   it('should configure easy logging only once when initialized with config file path', async function () {
     // given
     const logLevel = 'ERROR';
@@ -116,13 +111,19 @@ describe('Easy logging starter tests', function () {
         assert.strictEqual(err.message, 'Failed to initialize easy logging');
         assert.match(err.cause.message, /Parsing client configuration failed/);
         return true;
-      });
+      },
+    );
   });
 
   it('should fail for inaccessible log path', async function () {
     // given
     const logLevel = 'ERROR';
-    const configFilePath = await createConfigFile(logLevel, tempDir, defaultConfigName, '/?inaccessible');
+    const configFilePath = await createConfigFile(
+      logLevel,
+      tempDir,
+      defaultConfigName,
+      '/?inaccessible',
+    );
 
     // expect
     await assert.rejects(
@@ -132,7 +133,8 @@ describe('Easy logging starter tests', function () {
         assert.strictEqual(err.message, 'Failed to initialize easy logging');
         assert.match(err.cause.message, /Failed to create the directory for logs/);
         return true;
-      });
+      },
+    );
   });
 
   it('should create console and file transports by default when not using client configuration', function () {
@@ -141,7 +143,10 @@ describe('Easy logging starter tests', function () {
 
     // then
     assert.strictEqual(Logger.getInstance().easyLoggingConfigureCounter, undefined);
-    assert.strictEqual(Logger.getInstance().getTransportLabels().toString(), ['Console', 'File'].toString());
+    assert.strictEqual(
+      Logger.getInstance().getTransportLabels().toString(),
+      ['Console', 'File'].toString(),
+    );
   });
 
   it('should configure logger with file and console', function () {
@@ -154,7 +159,10 @@ describe('Easy logging starter tests', function () {
 
     // then
     assert.strictEqual(Logger.getInstance().easyLoggingConfigureCounter, undefined);
-    assert.strictEqual(Logger.getInstance().getTransportLabels().toString(), ['Console', 'File'].toString());
+    assert.strictEqual(
+      Logger.getInstance().getTransportLabels().toString(),
+      ['Console', 'File'].toString(),
+    );
   });
 
   it('should configure logger for file without console', function () {

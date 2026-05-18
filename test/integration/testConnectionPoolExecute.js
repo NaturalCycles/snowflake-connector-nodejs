@@ -1,7 +1,3 @@
-/*
- * Copyright (c) 2015-2024 Snowflake Computing Inc. All rights reserved.
- */
-
 const async = require('async');
 const testUtil = require('./testUtil');
 const { randomizeName } = require('./testUtil');
@@ -34,11 +30,9 @@ describe('Execute test with Pool', function () {
           const insertCount = 5;
           const insertValues = function (i) {
             if (i < insertCount) {
-              testUtil.executeCmdUsePool(connectionPool,
-                insertNodeTSQL,
-                function () {
-                  insertValues(i + 1);
-                });
+              testUtil.executeCmdUsePool(connectionPool, insertNodeTSQL, function () {
+                insertValues(i + 1);
+              });
             } else {
               callback();
             }
@@ -49,39 +43,43 @@ describe('Execute test with Pool', function () {
           testUtil.executeQueryAndVerifyUsePool(
             connectionPool,
             selectAllSQL,
-            [{ 'COLA': 1, 'COLB': 'a' },
-              { 'COLA': 1, 'COLB': 'a' },
-              { 'COLA': 1, 'COLB': 'a' },
-              { 'COLA': 1, 'COLB': 'a' },
-              { 'COLA': 1, 'COLB': 'a' }],
-            callback
+            [
+              { COLA: 1, COLB: 'a' },
+              { COLA: 1, COLB: 'a' },
+              { COLA: 1, COLB: 'a' },
+              { COLA: 1, COLB: 'a' },
+              { COLA: 1, COLB: 'a' },
+            ],
+            callback,
           );
-        }
+        },
       ],
-      done
+      done,
     );
   });
 
   it('testSimpleUpdate', function (done) {
-    async.series([
-      function (callback) {
-        testUtil.executeCmdUsePool(connectionPool, createNodeTSQL, callback);
-      },
-      function (callback) {
-        testUtil.executeCmdUsePool(connectionPool, insertNodeTSQL, callback);
-      },
-      function (callback) {
-        testUtil.executeCmdUsePool(connectionPool, updateNodeTSQL, callback);
-      },
-      function (callback) {
-        testUtil.executeQueryAndVerifyUsePool(
-          connectionPool,
-          selectAllSQL,
-          [{ 'COLA': 2, 'COLB': 'b' }],
-          callback
-        );
-      }],
-    done
+    async.series(
+      [
+        function (callback) {
+          testUtil.executeCmdUsePool(connectionPool, createNodeTSQL, callback);
+        },
+        function (callback) {
+          testUtil.executeCmdUsePool(connectionPool, insertNodeTSQL, callback);
+        },
+        function (callback) {
+          testUtil.executeCmdUsePool(connectionPool, updateNodeTSQL, callback);
+        },
+        function (callback) {
+          testUtil.executeQueryAndVerifyUsePool(
+            connectionPool,
+            selectAllSQL,
+            [{ COLA: 2, COLB: 'b' }],
+            callback,
+          );
+        },
+      ],
+      done,
     );
   });
 
@@ -92,8 +90,8 @@ describe('Execute test with Pool', function () {
           testUtil.executeQueryAndVerifyUsePool(
             connectionPool,
             createNodeTSQL,
-            [{ 'status': `Table ${nodeT.toUpperCase()} successfully created.` }],
-            callback
+            [{ status: `Table ${nodeT.toUpperCase()} successfully created.` }],
+            callback,
           );
         },
         function (callback) {
@@ -101,10 +99,11 @@ describe('Execute test with Pool', function () {
             connectionPool,
             insertNodeTSQL,
             [{ 'number of rows inserted': 1 }],
-            callback
+            callback,
           );
-        }],
-      done
+        },
+      ],
+      done,
     );
   });
 });
@@ -137,9 +136,9 @@ describe('Execute test use Pool for multiple connections', function () {
         },
         function (callback) {
           testUtil.executeCmdUsePool(connectionPool, insertNodeBSQL, callback);
-        }
+        },
       ],
-      done
+      done,
     );
   });
 
@@ -151,33 +150,33 @@ describe('Execute test use Pool for multiple connections', function () {
         },
         function (callback) {
           testUtil.executeCmdUsePool(connectionPool, dropNodeBSQL, callback);
-        }
+        },
       ],
-      done
+      done,
     );
   });
 
-  it('testSimpleInsert', function (done) {    
+  it('testSimpleInsert', function (done) {
     async.parallel(
       [
         function (callback) {
           testUtil.executeQueryAndVerifyUsePool(
             connectionPool,
             selectAllSQLFromNodeA,
-            [{ 'COLA': 1, 'COLB': 'a' }],
-            callback
+            [{ COLA: 1, COLB: 'a' }],
+            callback,
           );
         },
         function (callback) {
           testUtil.executeQueryAndVerifyUsePool(
             connectionPool,
             selectAllSQLFromNodeB,
-            [{ 'COLA': 1, 'COLB': 'b' }],
-            callback
+            [{ COLA: 1, COLB: 'b' }],
+            callback,
           );
-        }
+        },
       ],
-      done
+      done,
     );
   });
 });

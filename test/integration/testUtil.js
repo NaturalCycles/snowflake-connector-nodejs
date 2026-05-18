@@ -1,8 +1,4 @@
-/*
- * Copyright (c) 2015-2024 Snowflake Computing Inc. All rights reserved.
- */
-
-const snowflake = require('./../../lib/snowflake');
+const snowflake = require('./../../lib/snowflake').default;
 const connOptions = require('./connectionOptions');
 const assert = require('assert');
 const fs = require('fs');
@@ -10,21 +6,35 @@ const fsPromises = require('fs').promises;
 const crypto = require('crypto');
 const Logger = require('../../lib/logger');
 const path = require('path');
-const os = require('os');
 
-module.exports.createConnection = function (validConnectionOptionsOverride = {}) {
-  return snowflake.createConnection({
+module.exports.createConnection = function (validConnectionOptionsOverride = {}, coreInstance) {
+  coreInstance = coreInstance || snowflake;
+
+  return coreInstance.createConnection({
     ...connOptions.valid,
     ...validConnectionOptionsOverride,
   });
 };
 
-module.exports.createProxyConnection = function () {
-  return snowflake.createConnection(connOptions.connectionWithProxy);
+module.exports.createProxyConnection = function (validConnectionOptionsOverride, coreInstance) {
+  coreInstance = coreInstance || snowflake;
+
+  return coreInstance.createConnection({
+    ...connOptions.connectionWithProxy,
+    ...validConnectionOptionsOverride,
+  });
 };
 
-module.exports.createConnectionPool = function () {
-  return snowflake.createPool(connOptions.valid, { max: 10, min: 0, testOnBorrow: true });
+module.exports.createConnectionPool = function (validConnectionOptionsOverride, coreInstance) {
+  coreInstance = coreInstance || snowflake;
+
+  return coreInstance.createPool(
+    {
+      ...connOptions.valid,
+      ...validConnectionOptionsOverride,
+    },
+    { max: 10, min: 0, testOnBorrow: true },
+  );
 };
 
 module.exports.connect = function (connection, callback) {
@@ -36,7 +46,7 @@ module.exports.connect = function (connection, callback) {
 
 module.exports.connectAsync = function (connection) {
   return new Promise((resolve, reject) => {
-    connection.connect(err => err ? reject(err) : resolve());
+    connection.connect((err) => (err ? reject(err) : resolve()));
   });
 };
 
@@ -55,7 +65,7 @@ module.exports.destroyConnection = function (connection, callback) {
 
 module.exports.destroyConnectionAsync = function (connection) {
   return new Promise((resolve, reject) => {
-    connection.destroy(err => err ? reject(err) : resolve());
+    connection.destroy((err) => (err ? reject(err) : resolve()));
   });
 };
 
@@ -70,7 +80,7 @@ module.exports.executeCmd = function (connection, sql, callback, bindArray) {
   connection.execute({
     sqlText: sql,
     binds: bindArray !== undefined && bindArray != null ? bindArray : undefined,
-    complete: err => callback(err)
+    complete: (err) => callback(err),
   });
 };
 
@@ -79,23 +89,29 @@ module.exports.executeCmdUsePool = function (connectionPool, sql, callback, bind
     await clientConnection.execute({
       sqlText: sql,
       binds: bindArray !== undefined && bindArray != null ? bindArray : undefined,
-      complete: err => callback(err)
+      complete: (err) => callback(err),
     });
   });
 };
 
-const executeCmdAsync = function (connection, sqlText, binds = undefined) {
+const executeCmdAsync = function (connection, sqlText, additionalParameters = {}) {
   return new Promise((resolve, reject) => {
     connection.execute({
       sqlText,
-      binds,
-      complete: (err, _, rows) => err ? reject(err) : resolve(rows)
+      ...additionalParameters,
+      complete: (err, statement, rows) => {
+        if (err) {
+          err.statement = statement;
+          reject(err);
+        } else {
+          resolve({ rows, statement });
+        }
+      },
     });
   });
 };
 
 module.exports.executeCmdAsync = executeCmdAsync;
-
 /**
  * Drop tables one by one if exist - any connection error is ignored
  * @param connection Connection
@@ -133,10 +149,18 @@ module.exports.checkError = function (err) {
   assert.ok(!err, JSON.stringify(err));
 };
 
-module.exports.executeQueryAndVerify = function (connection, sql, expected, callback, bindArray, normalize, strict) {
+module.exports.executeQueryAndVerify = function (
+  connection,
+  sql,
+  expected,
+  callback,
+  bindArray,
+  normalize,
+  strict,
+) {
   // Sometimes we may not want to normalize the row first
-  normalize = (typeof normalize !== 'undefined' && normalize != null) ? normalize : true;
-  strict = (typeof strict !== 'undefined' && strict != null) ? strict : true;
+  normalize = typeof normalize !== 'undefined' && normalize != null ? normalize : true;
+  strict = typeof strict !== 'undefined' && strict != null ? strict : true;
   const executeOptions = {};
   executeOptions.sqlText = sql;
   executeOptions.complete = function (err, stmt) {
@@ -169,10 +193,18 @@ module.exports.executeQueryAndVerify = function (connection, sql, expected, call
   connection.execute(executeOptions);
 };
 
-module.exports.executeQueryAndVerifyUsePool = function (connectionPool, sql, expected, callback, bindArray, normalize, strict) {
+module.exports.executeQueryAndVerifyUsePool = function (
+  connectionPool,
+  sql,
+  expected,
+  callback,
+  bindArray,
+  normalize,
+  strict,
+) {
   // Sometimes we may not want to normalize the row first
-  normalize = (typeof normalize !== 'undefined' && normalize != null) ? normalize : true;
-  strict = (typeof strict !== 'undefined' && strict != null) ? strict : true;
+  normalize = typeof normalize !== 'undefined' && normalize != null ? normalize : true;
+  strict = typeof strict !== 'undefined' && strict != null ? strict : true;
   const executeOptions = {};
   executeOptions.sqlText = sql;
   executeOptions.complete = function (err, stmt) {
@@ -208,15 +240,15 @@ module.exports.executeQueryAndVerifyUsePool = function (connectionPool, sql, exp
 };
 
 function normalizeValue(value) {
-  const convertToString = (value !== null) && (value !== undefined)
-    && (typeof value.toJSON === 'function');
-  const convertToJSNumber = (value !== null) && (value !== undefined)
-    && (typeof value.toJSNumber === 'function');
+  const convertToString =
+    value !== null && value !== undefined && typeof value.toJSON === 'function';
+  const convertToJSNumber =
+    value !== null && value !== undefined && typeof value.toJSNumber === 'function';
   // If this is a bigInt type then convert to JS Number instead of string JSON representation
   if (convertToJSNumber) {
     return value.toJSNumber();
   } else if (convertToString) {
-    return  value.toJSON();
+    return value.toJSON();
   } else {
     return value;
   }
@@ -234,7 +266,7 @@ function normalizeRowObject(row) {
 }
 
 /**
- * @param file 
+ * @param file
  */
 module.exports.deleteFileSyncIgnoringErrors = function (file) {
   if (fs.existsSync(file)) {
@@ -251,7 +283,8 @@ module.exports.deleteFileSyncIgnoringErrors = function (file) {
  */
 module.exports.deleteFolderSyncIgnoringErrors = function (directory) {
   try {
-    if (fs.rm) { // node >= 14 has rm method for recursive delete and rmdir with recursive flag is deprecated
+    if (fs.rm) {
+      // node >= 14 has rm method for recursive delete and rmdir with recursive flag is deprecated
       fs.rmSync(directory, { recursive: true });
     } else {
       fs.rmdirSync(directory, { recursive: true });
@@ -283,16 +316,6 @@ module.exports.assertLogMessage = function (expectedLevel, expectedMessage, actu
 };
 
 /**
- * @param directory string
- * @return string
- */
-module.exports.createTestingDirectoryInTemp = function (directory) {
-  const tempDir = path.join(os.tmpdir(), directory);
-  fs.mkdirSync(tempDir, { recursive: true });
-  return tempDir;
-};
-
-/**
  * @param mainDir string
  * @param fileName string
  * @param data string
@@ -319,14 +342,33 @@ module.exports.createTempFileAsync = async function (mainDir, fileName, data = '
 /**
  * @param option object
  */
-module.exports.createRandomFileName = function ( option = { prefix: '', postfix: '', extension: '' }) {
+module.exports.createRandomFileName = function (
+  option = { prefix: '', postfix: '', extension: '' },
+) {
   const randomName = crypto.randomUUID();
   const fileName = `${option.prefix || ''}${randomName}${option.postfix || ''}${option.extension || ''}`;
   return fileName;
 };
 
-module.exports.sleepAsync = function (ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
+const sleepAsync = function (ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+};
+
+module.exports.sleepAsync = sleepAsync;
+
+module.exports.waitForCondition = async function (
+  conditionCallable,
+  { maxWaitTimeInMs = 20000, waitTimeBetweenChecksInMs = 1000 } = {},
+) {
+  let waitedTimeInMs = 0;
+  while (!conditionCallable()) {
+    await sleepAsync(waitTimeBetweenChecksInMs);
+    waitedTimeInMs += waitTimeBetweenChecksInMs;
+
+    if (waitedTimeInMs > maxWaitTimeInMs) {
+      throw Error(`Condition was not met after max wait time = ${maxWaitTimeInMs}`);
+    }
+  }
 };
 
 module.exports.assertConnectionActive = function (connection) {
@@ -343,6 +385,27 @@ module.exports.assertActiveConnectionDestroyedCorrectlyAsync = async function (c
   module.exports.assertConnectionInactive(connection);
 };
 
-
 module.exports.normalizeRowObject = normalizeRowObject;
 module.exports.normalizeValue = normalizeValue;
+
+module.exports.isGuidInRequestOptions = function (requestOptions) {
+  return requestOptions.url.includes('request_guid') || 'request_guid' in requestOptions.params;
+};
+
+module.exports.isRequestCancelledError = function (error) {
+  assert.equal(
+    error.message,
+    'canceled',
+    `Expected error message "canceled", but received ${error.message}`,
+  );
+  assert.equal(
+    error.name,
+    'CanceledError',
+    `Expected error name "CanceledError", but received ${error.name}`,
+  );
+  assert.equal(
+    error.code,
+    'ERR_CANCELED',
+    `Expected error code "ERR_CANCELED", but received ${error.code}`,
+  );
+};

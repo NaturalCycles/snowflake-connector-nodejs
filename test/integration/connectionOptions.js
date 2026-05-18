@@ -1,7 +1,3 @@
-/*
- * Copyright (c) 2015-2024 Snowflake Computing Inc. All rights reserved.
- */
-
 let snowflakeTestProtocol = process.env.SNOWFLAKE_TEST_PROTOCOL;
 let snowflakeTestHost = process.env.SNOWFLAKE_TEST_HOST;
 let snowflakeTestPort = process.env.SNOWFLAKE_TEST_PORT;
@@ -14,20 +10,16 @@ const snowflakeTestWarehouse = process.env.SNOWFLAKE_TEST_WAREHOUSE;
 const snowflakeTestSchema = process.env.SNOWFLAKE_TEST_SCHEMA;
 const snowflakeTestRole = process.env.SNOWFLAKE_TEST_ROLE;
 const snowflakeTestPassword = process.env.SNOWFLAKE_TEST_PASSWORD;
+const snowflakeTestPrivateKeyFile = process.env.SNOWFLAKE_TEST_PRIVATE_KEY_FILE;
+const snowflakeTestAuthenticator = process.env.SNOWFLAKE_TEST_AUTHENTICATOR;
 const snowflakeTestAdminUser = process.env.SNOWFLAKE_TEST_ADMIN_USER;
 const snowflakeTestAdminPassword = process.env.SNOWFLAKE_TEST_ADMIN_PASSWORD;
-const snowflakeTestBrowserUser = process.env.SNOWFLAKE_TEST_BROWSER_USER;
-const snowflakeTestPrivateKeyUser = process.env.SNOWFLAKE_JWT_TEST_USER;
-const snowflakeTestPrivateKey = process.env.SNOWFLAKE_TEST_PRIVATE_KEY;
-const snowflakeTestPrivateKeyPath = process.env.SNOWFLAKE_TEST_PRIVATE_KEY_PATH;
-const snowflakeTestPrivateKeyPass = process.env.SNOWFLAKE_TEST_PRIVATE_KEY_PASS;
-const snowflakeTestPrivateKeyPathUnencrypted = process.env.SNOWFLAKE_TEST_PRIVATE_KEY_PATH_UNENCRYPTED;
-const snowflakeTestOauthUser = process.env.SNOWFLAKE_TEST_OAUTH_USER;
-const snowflakeTestToken = process.env.SNOWFLAKE_TEST_OAUTH_TOKEN;
-const snowflakeTestOktaUser = process.env.SNOWFLAKE_TEST_OKTA_USER;
-const snowflakeTestOktaPass = process.env.SNOWFLAKE_TEST_OKTA_PASS;
-const snowflakeTestOktaAuth = process.env.SNOWFLAKE_TEST_OKTA_AUTH;
 const snowflakeTestPasscode = process.env.SNOWFLAKE_TEST_PASSCODE;
+const snowflakeOauthClientID = process.env.SNOWFLAKE_TEST_OAUTH_CLIENT_ID;
+const snowflakeOauthClientSecret = process.env.SNOWFLAKE_TEST_OAUTH_CLIENT_SECRET;
+const oauthAuthorizationUrl = process.env.SNOWFLAKE_TEST_OAUTH_AUTHORIZATION_URL;
+const oauthTokenRequestUrl = process.env.SNOWFLAKE_TEST_OAUTH_TOKEN_REQUEST_URL;
+const oauthRedirectUri = process.env.SNOWFLAKE_TEST_OAUTH_REDIRECT_UIR;
 
 if (snowflakeTestProtocol === undefined) {
   snowflakeTestProtocol = 'https';
@@ -49,119 +41,54 @@ if (snowflakeTestProxyPort === undefined) {
   snowflakeTestProxyPort = '3128';
 }
 
-const accessUrl = snowflakeTestProtocol + '://' + snowflakeTestHost + ':' +
-  snowflakeTestPort;
+const accessUrl = snowflakeTestProtocol + '://' + snowflakeTestHost + ':' + snowflakeTestPort;
 
-const valid =
-  {
-    accessUrl: accessUrl,
-    username: snowflakeTestUser,
-    password: snowflakeTestPassword,
-    account: snowflakeTestAccount,
-    warehouse: snowflakeTestWarehouse,
-    database: snowflakeTestDatabase,
-    schema: snowflakeTestSchema,
-    role: snowflakeTestRole,
-    host: snowflakeTestHost,
-  };
+// When keypair is available, set privateKeyPath + authenticator on top of password.
+// The authenticator type determines which auth method is actually used by the driver:
+// - SNOWFLAKE_JWT: uses private key (password is present but ignored)
+// - DEFAULT (no authenticator set): uses password
+const keypairOptions = snowflakeTestPrivateKeyFile
+  ? {
+      privateKeyPath: snowflakeTestPrivateKeyFile,
+      authenticator: snowflakeTestAuthenticator || 'SNOWFLAKE_JWT',
+    }
+  : {};
 
-const snowflakeAccount = snowflakeTestAdminUser !== undefined ?
-  {
-    accessUrl: accessUrl,
-    username: snowflakeTestAdminUser,
-    password: snowflakeTestAdminPassword,
-    account: 'snowflake'
-  } : undefined;
-
-const wrongUserName =
-  {
-    accessUrl: accessUrl,
-    username: snowflakeTestUser,
-    password: 'testWrongPass',
-    account: snowflakeTestAccount
-  };
-
-const wrongPwd =
-  {
-    accessUrl: accessUrl,
-    username: snowflakeTestUser,
-    password: '',
-    account: snowflakeTestAccount
-  };
-
-const externalBrowser =
-{
+const valid = {
   accessUrl: accessUrl,
-  username: snowflakeTestBrowserUser,
+  username: snowflakeTestUser,
+  password: snowflakeTestPassword,
+  ...keypairOptions,
   account: snowflakeTestAccount,
   warehouse: snowflakeTestWarehouse,
   database: snowflakeTestDatabase,
   schema: snowflakeTestSchema,
   role: snowflakeTestRole,
   host: snowflakeTestHost,
-  authenticator: 'EXTERNALBROWSER'
 };
 
-const externalBrowserWithShortTimeout = {
-  ...externalBrowser,
-  browserActionTimeout: 100,
-};
+const snowflakeAccount =
+  snowflakeTestAdminUser !== undefined
+    ? {
+        accessUrl: accessUrl,
+        username: snowflakeTestAdminUser,
+        password: snowflakeTestAdminPassword,
+        account: 'snowflake',
+      }
+    : undefined;
 
-const externalBrowserMismatchUser =
-{
+const wrongUserName = {
   accessUrl: accessUrl,
-  username: 'node',
+  username: snowflakeTestUser,
+  password: 'testWrongPass',
   account: snowflakeTestAccount,
-  authenticator: 'EXTERNALBROWSER'
 };
 
-const keypairPrivateKey =
-{
+const wrongPwd = {
   accessUrl: accessUrl,
-  username: snowflakeTestPrivateKeyUser,
+  username: snowflakeTestUser,
+  password: '',
   account: snowflakeTestAccount,
-  warehouse: snowflakeTestWarehouse,
-  database: snowflakeTestDatabase,
-  schema: snowflakeTestSchema,
-  role: snowflakeTestRole,
-  privateKey: snowflakeTestPrivateKey,
-  authenticator: 'SNOWFLAKE_JWT'
-};
-
-const keypairPathEncrypted =
-{
-  accessUrl: accessUrl,
-  username: snowflakeTestPrivateKeyUser,
-  account: snowflakeTestAccount,
-  warehouse: snowflakeTestWarehouse,
-  database: snowflakeTestDatabase,
-  schema: snowflakeTestSchema,
-  role: snowflakeTestRole,
-  privateKeyPath: snowflakeTestPrivateKeyPath,
-  privateKeyPass: snowflakeTestPrivateKeyPass,
-  authenticator: 'SNOWFLAKE_JWT'
-};
-
-const keypairPathUnencrypted =
-{
-  accessUrl: accessUrl,
-  username: snowflakeTestPrivateKeyUser,
-  account: snowflakeTestAccount,
-  warehouse: snowflakeTestWarehouse,
-  database: snowflakeTestDatabase,
-  schema: snowflakeTestSchema,
-  role: snowflakeTestRole,
-  privateKeyPath: snowflakeTestPrivateKeyPathUnencrypted,
-  authenticator: 'SNOWFLAKE_JWT'
-};
-
-const keypairWrongToken =
-{
-  accessUrl: accessUrl,
-  username: 'node',
-  account: snowflakeTestAccount,
-  privateKey: snowflakeTestPrivateKey,
-  authenticator: 'SNOWFLAKE_JWT'
 };
 
 const MFA = {
@@ -170,62 +97,63 @@ const MFA = {
   passcode: snowflakeTestPasscode,
 };
 
-const oauth =
-{
-  accessUrl: accessUrl,
-  username: snowflakeTestOauthUser,
-  account: snowflakeTestAccount,
-  warehouse: snowflakeTestWarehouse,
-  database: snowflakeTestDatabase,
-  schema: snowflakeTestSchema,
-  role: snowflakeTestRole,
-  token: snowflakeTestToken,
-  authenticator: 'OAUTH'
+const PAT = {
+  ...valid,
+  authenticator: 'PROGRAMMATIC_ACCESS_TOKEN',
+  role: 'ANALYST',
 };
 
-const oauthMismatchUser =
-{
-  accessUrl: accessUrl,
-  username: 'node',
-  account: snowflakeTestAccount,
-  token: snowflakeTestToken,
-  authenticator: 'OAUTH'
+const authorizationCodeOkta = {
+  ...valid,
+  accessUrl: null,
+  authenticator: 'OAUTH_AUTHORIZATION_CODE',
+  oauthClientId: snowflakeOauthClientID,
+  oauthClientSecret: snowflakeOauthClientSecret,
+  oauthAuthorizationUrl: oauthAuthorizationUrl,
+  oauthTokenRequestUrl: oauthTokenRequestUrl,
+  oauthRedirectUri: oauthRedirectUri,
 };
 
-const okta =
-{
-  accessUrl: accessUrl,
-  username: snowflakeTestOktaUser,
-  password: snowflakeTestOktaPass,
-  account: snowflakeTestAccount,
-  warehouse: snowflakeTestWarehouse,
-  database: snowflakeTestDatabase,
-  schema: snowflakeTestSchema,
-  role: snowflakeTestRole,
-  authenticator: snowflakeTestOktaAuth
+const authorizationCodeSnowflake = {
+  ...valid,
+  // username: snowflakeOauthClientID,
+  oauthClientId: snowflakeOauthClientID,
+  oauthClientSecret: snowflakeOauthClientSecret,
+  authenticator: 'OAUTH_AUTHORIZATION_CODE',
+  oauthAuthorizationUrl: oauthAuthorizationUrl,
+  oauthTokenRequestUrl: oauthTokenRequestUrl,
 };
 
-const privatelink =
-{
+const clientCredentialSnowflake = {
+  ...valid,
+  username: '',
+  oauthClientId: snowflakeOauthClientID,
+  oauthClientSecret: snowflakeOauthClientSecret,
+  oauthTokenRequestUrl: oauthTokenRequestUrl,
+  authenticator: 'OAUTH_CLIENT_CREDENTIALS',
+};
+
+const privatelink = {
   accessUrl: accessUrl,
   username: snowflakeTestUser,
   password: snowflakeTestPassword,
-  account: snowflakeTestAccount + '.privatelink'
+  ...keypairOptions,
+  account: snowflakeTestAccount + '.privatelink',
 };
 
-const connectionWithProxy =
-  {
-    accessUrl: accessUrl,
-    username: snowflakeTestUser,
-    password: snowflakeTestPassword,
-    account: snowflakeTestAccount,
-    warehouse: snowflakeTestWarehouse,
-    database: snowflakeTestDatabase,
-    schema: snowflakeTestSchema,
-    role: snowflakeTestRole,
-    proxyHost: snowflakeTestProxyHost,
-    proxyPort: parseInt(snowflakeTestProxyPort, 10)
-  };
+const connectionWithProxy = {
+  accessUrl: accessUrl,
+  username: snowflakeTestUser,
+  password: snowflakeTestPassword,
+  ...keypairOptions,
+  account: snowflakeTestAccount,
+  warehouse: snowflakeTestWarehouse,
+  database: snowflakeTestDatabase,
+  schema: snowflakeTestSchema,
+  role: snowflakeTestRole,
+  proxyHost: snowflakeTestProxyHost,
+  proxyPort: parseInt(snowflakeTestProxyPort, 10),
+};
 
 exports.valid = valid;
 exports.snowflakeAccount = snowflakeAccount;
@@ -233,16 +161,10 @@ exports.wrongUserName = wrongUserName;
 exports.wrongPwd = wrongPwd;
 exports.accessUrl = accessUrl;
 exports.account = snowflakeTestAccount;
-exports.externalBrowser = externalBrowser;
-exports.externalBrowserWithShortTimeout = externalBrowserWithShortTimeout;
-exports.externalBrowserMismatchUser = externalBrowserMismatchUser;
-exports.keypairPrivateKey = keypairPrivateKey;
-exports.keypairPathEncrypted = keypairPathEncrypted;
-exports.keypairPathUnencrypted = keypairPathUnencrypted;
-exports.keypairWrongToken = keypairWrongToken;
-exports.oauth = oauth;
-exports.oauthMismatchUser = oauthMismatchUser;
-exports.okta = okta;
 exports.privatelink = privatelink;
 exports.connectionWithProxy = connectionWithProxy;
 exports.MFA = MFA;
+exports.PAT = PAT;
+exports.authorizationCodeOkta = authorizationCodeOkta;
+exports.authorizationCodeSnowflake = authorizationCodeSnowflake;
+exports.clientCredentialSnowflake = clientCredentialSnowflake;
