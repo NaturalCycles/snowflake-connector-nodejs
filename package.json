@@ -7,7 +7,6 @@
   },
   "dependencies": {
     "@techteamer/ocsp": "1.0.1",
-    "agent-base": "^7.1.0",
     "asn1.js-rfc2560": "^5.0.0",
     "asn1.js-rfc5280": "^3.0.0",
     "axios": "^1.15.1",
