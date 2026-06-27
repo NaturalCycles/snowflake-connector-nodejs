@@ -2,6 +2,7 @@ import type { defaultProvider as _defaultProvider } from '@aws-sdk/credential-pr
 import type {
   STSClient as _STSClient,
   AssumeRoleCommand as _AssumeRoleCommand,
+  GetWebIdentityTokenCommand as _GetWebIdentityTokenCommand,
 } from '@aws-sdk/client-sts';
 import type { MetadataService as _MetadataService } from '@aws-sdk/ec2-metadata-service';
 import type { HttpRequest as _HttpRequest } from '@smithy/protocol-http';
@@ -16,6 +17,7 @@ type AwsSdk = {
   defaultProvider: typeof _defaultProvider;
   STSClient: typeof _STSClient;
   AssumeRoleCommand: typeof _AssumeRoleCommand;
+  GetWebIdentityTokenCommand: typeof _GetWebIdentityTokenCommand;
   MetadataService: typeof _MetadataService;
   HttpRequest: typeof _HttpRequest;
   SignatureV4: typeof _SignatureV4;
@@ -28,6 +30,7 @@ function awsSdk(): AwsSdk {
       defaultProvider: require('@aws-sdk/credential-provider-node').defaultProvider,
       STSClient: require('@aws-sdk/client-sts').STSClient,
       AssumeRoleCommand: require('@aws-sdk/client-sts').AssumeRoleCommand,
+      GetWebIdentityTokenCommand: require('@aws-sdk/client-sts').GetWebIdentityTokenCommand,
       MetadataService: require('@aws-sdk/ec2-metadata-service').MetadataService,
       HttpRequest: require('@smithy/protocol-http').HttpRequest,
       SignatureV4: require('@smithy/signature-v4').SignatureV4,
@@ -83,11 +86,25 @@ export function getStsHostname(region: string) {
   return `sts.${region}.${domain}`;
 }
 
-export async function getAwsAttestationToken(impersonationPath?: string[]) {
-  const { HttpRequest, SignatureV4, Sha256 } = awsSdk();
+export async function getAwsAttestationToken(
+  useOutboundToken = false,
+  impersonationPath?: string[],
+) {
   const region = await getAwsRegion();
   const credentials = await getAwsCredentials(region, impersonationPath);
 
+  if (useOutboundToken) {
+    return getOutboundWebIdentityToken(region, credentials);
+  } else {
+    return getCallerIdentityToken(region, credentials);
+  }
+}
+
+async function getCallerIdentityToken(
+  region: string,
+  credentials: Awaited<ReturnType<typeof getAwsCredentials>>,
+) {
+  const { HttpRequest, SignatureV4, Sha256 } = awsSdk();
   const stsHostname = getStsHostname(region);
   const request = new HttpRequest({
     method: 'POST',
@@ -117,4 +134,25 @@ export async function getAwsAttestationToken(impersonationPath?: string[]) {
     headers: signedRequest.headers,
   };
   return btoa(JSON.stringify(token));
+}
+
+async function getOutboundWebIdentityToken(
+  region: string,
+  credentials: Awaited<ReturnType<typeof getAwsCredentials>>,
+) {
+  const { STSClient, GetWebIdentityTokenCommand } = awsSdk();
+  const stsClient = new STSClient({ credentials, region });
+  const response = await stsClient.send(
+    new GetWebIdentityTokenCommand({
+      Audience: ['snowflakecomputing.com'],
+      SigningAlgorithm: 'ES384',
+    }),
+  );
+
+  const token = response.WebIdentityToken;
+  if (!token) {
+    throw new Error('Failed to obtain AWS web identity token from STS');
+  }
+
+  return token;
 }

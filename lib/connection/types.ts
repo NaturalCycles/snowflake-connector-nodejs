@@ -20,6 +20,13 @@ export interface WIP_ConnectionOptions {
   accessUrl?: string;
 
   /**
+   * @deprecated
+   * Append a region or any sub domains before snowflakecomputing.com to the
+   * end of account parameter after a dot, e.g., account=<account>.<region>.
+   */
+  region?: string;
+
+  /**
    * The login name for your Snowflake user or your Identity Provider (e.g. your login name for Okta).
    */
   username?: string;
@@ -82,6 +89,16 @@ export interface WIP_ConnectionOptions {
   clientSessionKeepAliveHeartbeatFrequency?: number;
 
   /**
+   * When true, the session is not destroyed on the server side when the connection
+   * is closed. This allows async queries to continue running after disconnect.
+   * Any unfinished queries will continue to live in Snowflake and consume credits
+   * until they finish.
+   *
+   * @default false
+   */
+  serverSessionKeepAlive?: boolean;
+
+  /**
    * Enable MFA/SSO token caching.
    *
    * https://docs.snowflake.com/en/developer-guide/node-js/nodejs-driver-authenticate#authentication-token-caching
@@ -110,6 +127,17 @@ export interface WIP_ConnectionOptions {
    * * WORKLOAD_IDENTITY
    */
   token?: string;
+
+  /**
+   * Specifies the path to a file containing the token for authentication.
+   *
+   * This option works similarly to the `token` property, but retrieves the token value by reading the specified file from disk.
+   *
+   * If `token` is not provided, the driver will attempt to read the token from this file for suitable token-based authenticators.
+   *
+   * If both `token` and `tokenFilePath` are set, `token` takes precedence and this file path will be ignored.
+   */
+  tokenFilePath?: string;
 
   /**
    * Enable single use refresh tokens for OAuth
@@ -212,6 +240,29 @@ export interface WIP_ConnectionOptions {
   browserRedirectPort?: number;
 
   /**
+   * Lets you customize the web page a user sees in their browser after they
+   * finish signing in, instead of the default confirmation message. Use it to
+   * show your own branding, wording, or a "you can close this tab" page.
+   *
+   * Supported when authenticator is set to:
+   * * EXTERNALBROWSER
+   * * OAUTH_AUTHORIZATION_CODE
+   *
+   * Return the full HTML page to display. On success, `error` is `null`.
+   * If sign-in failed, `error` contains the message from your identity provider
+   * (already HTML-escaped, so it is safe to embed directly).
+   *
+   * @example
+   * browserResponseRenderer: ({ error }) => {
+   *   const message = error
+   *     ? `<h1>Login failed</h1><p>${error}</p>`
+   *     : '<h1>All set! You can close this tab.</h1>';
+   *   return `<html><body>${message}</body></html>`;
+   * }
+   */
+  browserResponseRenderer?: (result: { error: string | null }) => string;
+
+  /**
    * Specifies a custom callback for opening the browser window during authentication.
    * Supported when the authenticator is set to:
    * * EXTERNALBROWSER
@@ -223,7 +274,9 @@ export interface WIP_ConnectionOptions {
 
   /**
    * When authenticator=WORKLOAD_IDENTITY, specifies the identity provider. Available options:
-   * * AWS - Uses `@aws-sdk` to find credentials and encodes signed GetCallerIdentity request as token
+   * * AWS - Uses `@aws-sdk` to find credentials. Supports two attestation methods:
+   *   * `GetCallerIdentity` (default) - encodes a SigV4-signed `GetCallerIdentity` request as the token
+   *   * `GetWebIdentityToken` - obtains a signed JWT token, enabled via {@link workloadIdentityAwsUseOutboundToken}
    * * AZURE - Uses `@azure/identity` to find credentials and get JWT token
    * * GCP - Uses `google-auth-library` to find credentials and get JWT token
    * * OIDC - Reads JWT token from `ConnectionOptions.token`
@@ -248,6 +301,27 @@ export interface WIP_ConnectionOptions {
    * When workloadIdentityProvider=AZURE, customize Azure Managed Identity Client Id
    */
   workloadIdentityAzureClientId?: string;
+
+  /**
+   * When workloadIdentityProvider=AWS, selects the AWS attestation method.
+   *
+   * AWS WIF supports two methods:
+   * * `GetCallerIdentity` (default, `false`) - the connector encodes a SigV4-signed
+   *   `GetCallerIdentity` request as the attestation token.
+   * * `GetWebIdentityToken` (`true`) - the connector calls STS `GetWebIdentityToken` and
+   *   forwards a standards-based JWT instead. This provides stateless token verification and
+   *   compatibility with AWS outbound identity federation. It requires the AWS IAM role to have
+   *   `sts:GetWebIdentityToken` permission and the Snowflake service user to be configured with an
+   *   `ISSUER`.
+   *
+   * The `GetWebIdentityToken` method is recommended and may become the default in a future release.
+   *
+   * See {@link https://docs.snowflake.com/en/user-guide/workload-identity-federation#label-wif-aws-upgrade-jwt}
+   * for setup instructions, including the Node.js connector configuration.
+   *
+   * @default false
+   */
+  workloadIdentityAwsUseOutboundToken?: boolean;
 
   /**
    * Enables Certificate Revocation List (CRL) validation.
@@ -368,6 +442,7 @@ export type WIP_ConnectionConfig =
     | 'workloadIdentityImpersonationPath'
     | 'workloadIdentityAzureEntraIdResource'
     | 'workloadIdentityAzureClientId'
+    | 'workloadIdentityAwsUseOutboundToken'
     | 'oauthEnableSingleUseRefreshTokens'
     | 'rowStreamHighWaterMark'
   > & {

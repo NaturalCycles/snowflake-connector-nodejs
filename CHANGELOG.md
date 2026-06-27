@@ -2,10 +2,62 @@
 
 ## Upcoming Release
 
+New features:
+
+- Added `workloadIdentityAwsUseOutboundToken` connection option (default `false`) that switches AWS Workload Identity attestation to STS `GetWebIdentityToken` JWTs. This method is recommended and may become the default in a future release (snowflakedb/snowflake-connector-nodejs#1437)
+
+Bugfixes:
+
+- Reverted the unintentional breaking change from the 3.0.0 release (snowflakedb/snowflake-connector-nodejs#1415) that switched AWS Workload Identity attestation from SigV4 `GetCallerIdentity` to STS `GetWebIdentityToken`. AWS Workload Identity again defaults to `GetCallerIdentity`; the new method is now opt-in via `workloadIdentityAwsUseOutboundToken` (snowflakedb/snowflake-connector-nodejs#1437)
+- Removed usage of deprecated `util.isString` to fix Node 24 compatibility. Added additional logging where this caused silent failure (snowflakedb/snowflake-connector-nodejs#1436).
+
+## 3.0.0
+
+**Breaking changes:**
+
+- Dropped official support for Node.js 18. The minimum supported Node.js version is now 20.x, and `engines.node` is set to `>=20`. This release may still run on Node.js 18 for now, but we no longer test against it and will not investigate or fix Node 18-only issues. Treat Node 18 as unsupported and migrate to a current Node.js LTS. See the v3.0 announcement (snowflakedb/snowflake-connector-nodejs#1398) for details and migration guidance.
+
+New features:
+
+- Added `browserResponseRenderer` connection option to customize the HTML response shown in the browser after `EXTERNALBROWSER` and `OAUTH_AUTHORIZATION_CODE` callbacks (snowflakedb/snowflake-connector-nodejs#1416)
+- Added `tokenFilePath` connection option that reads the authentication token from a file when no `token` is provided (snowflakedb/snowflake-connector-nodejs#1421)
+- Added `serverSessionKeepAlive` connection option that keeps the session alive on the server side when `connection.destroy()` is called. Useful when you want to close the local connection while keeping async queries running on the server (snowflakedb/snowflake-connector-nodejs#1426)
+- Added experimental multipart/chunked stage upload for large files on AWS, Azure and GCS, enabled via the `enableExperimentalMultipartUploads` configuration flag (snowflakedb/snowflake-connector-nodejs#1427)
+
+Bugfixes:
+
+- Fixed global URL detection incorrectly truncating account names containing "global" (e.g. `myorg-global`) (snowflakedb/snowflake-connector-nodejs#1423)
+- Fixed `noProxy` connection option and `NO_PROXY` environment variable not bypassing the proxy for PrivateLink connections (snowflakedb/snowflake-connector-nodejs#1422).
+- Fixed interrupted streaming HTTP responses being treated as successful empty responses instead of errors, which could cause `streamRows()` to hang silently on large result sets (snowflakedb/snowflake-connector-nodejs#1420)
+- Fixed `LOCAL_FS` stage download writing to the wrong path by using the destination file's base name, consistent with cloud stages (snowflakedb/snowflake-connector-nodejs#1431)
+- Fixed `OAUTH_AUTHORIZATION_CODE` cold-connect lockout from a cached invalid refresh token; the bad token is now evicted and the full browser flow restarts (snowflakedb/snowflake-connector-nodejs#1435)
+
+Internal:
+
+- Switched AWS Workload Identity attestation to use STS `GetWebIdentityToken` JWTs; no longer uses SigV4 `GetCallerIdentity` envelopes. (snowflakedb/snowflake-connector-nodejs#1415)
+- Reverted `SESSION_ID_AS_STRING` change from snowflakedb/snowflake-connector-nodejs#1384 (introduced in 2.4.1) due to compatibility issues with session sharing between drivers (snowflakedb/snowflake-connector-nodejs#1428)
+
+## 2.4.3
+
+Bugfixes:
+
+- Fixed platform-detection probe not aborting within 200ms on Bun (snowflakedb/snowflake-connector-nodejs#1412)
+
+Dependencies:
+
+- Bumped `@aws-sdk/*` dependencies to `~3.1051.0` to address `fast-xml-builder` security vulnerabilities (snowflakedb/snowflake-connector-nodejs#1414)
+
+Internal:
+
+- Added in-band telemetry reporting, as boolean flags, which connection-identifier fields were supplied at login (`account_provided`, `account_with_region`, `account_org_provided`, `region_provided`, `host_provided`); no actual customer values (hostname, account, etc.) are sent (snowflakedb/snowflake-connector-nodejs#1411)
+
+## 2.4.2
+
 Bugfixes:
 
 - Destroy S3 clients after use in `s3_util.js` (`getFileHeader`, `uploadFileStream`, `nativeDownloadFile`) to prevent keepAlive socket accumulation and memory leak on long-lived pods (snowflakedb/snowflake-connector-nodejs#1403)
 - Fixed `deserializeConnection()` not deriving `accessUrl`/`host` from `account`, causing it to fail with a missing `accessUrl` error when only `account` was provided (snowflakedb/snowflake-connector-nodejs#1406)
+- Fixed `OAUTH_AUTHORIZATION_CODE` browser-popup loop caused by reauthentication opening a new browser window on every failed server response (regression from snowflakedb/snowflake-connector-nodejs#1394) (snowflakedb/snowflake-connector-nodejs#1409)
 
 ## 2.4.1
 

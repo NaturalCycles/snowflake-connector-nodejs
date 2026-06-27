@@ -151,6 +151,22 @@ describe('Oauth Refresh token for Autorization Code', function () {
     assert.strictEqual(refreshTokenInCache, 'new_refresh_token');
   });
 
+  it('Surfaces error but clears access token cache on success=false with a non-oauth failure code', async function () {
+    await authUtil.writeToCache(accessTokenKey, 'invalid_token');
+    await authUtil.writeToCache(refreshTokenKey, 'cached_refresh_token');
+    await addWireMockMappingsFromFile(
+      wireMock,
+      'wiremock/mappings/oauth/token_cache_and_refresh/surfaces_error_on_non_oauth_failure_code.json',
+    );
+    await authTest.createConnection(connectionOptionAuthorizationCode);
+    await authTest.connectAsync();
+    authTest.verifyErrorWasThrown('Authentication failed.');
+    const accessTokenInCache = await authUtil.readCache(accessTokenKey);
+    const refreshTokenInCache = await authUtil.readCache(refreshTokenKey);
+    assert.strictEqual(accessTokenInCache, null);
+    assert.strictEqual(refreshTokenInCache, 'cached_refresh_token');
+  });
+
   it('Restart authentication when error during refreshing token', async function () {
     await authUtil.writeToCache(accessTokenKey, 'expired_token');
     await authUtil.writeToCache(refreshTokenKey, 'first_refresh_token');
@@ -158,6 +174,25 @@ describe('Oauth Refresh token for Autorization Code', function () {
       wireMock,
       'wiremock/mappings/oauth/token_cache_and_refresh/restarting_full_flow_on_refresh_token_error.json',
     );
+    await authTest.createConnection({
+      ...connectionOptionAuthorizationCode,
+      openExternalBrowserCallback: simulateBrowserRedirect,
+    });
+    await authTest.connectAsync();
+    authTest.verifyNoErrorWasThrown();
+    const accessTokenInCache = await authUtil.readCache(accessTokenKey);
+    const refreshTokenInCache = await authUtil.readCache(refreshTokenKey);
+    assert.strictEqual(accessTokenInCache, 'new-refreshed-access-token-123');
+    assert.strictEqual(refreshTokenInCache, 'new-refresh-token-123');
+  });
+
+  it('Restarts full flow on cold connect when only an invalid refresh token is cached', async function () {
+    await authUtil.writeToCache(refreshTokenKey, 'invalid_refresh_token');
+    await addWireMockMappingsFromFile(
+      wireMock,
+      'wiremock/mappings/oauth/token_cache_and_refresh/restarting_full_flow_on_cold_connect_refresh_token_error.json',
+    );
+    await addWireMockMappingsFromFile(wireMock, 'wiremock/mappings/login_request_ok.json');
     await authTest.createConnection({
       ...connectionOptionAuthorizationCode,
       openExternalBrowserCallback: simulateBrowserRedirect,
