@@ -12,10 +12,12 @@ The motivating change vs. upstream is that heavy cloud SDKs are declared as **op
 These same packages are **also listed in `devDependencies`** so local dev/CI installs them and the TypeScript build (`npm run prepack`) can resolve their types. They are only optional for downstream consumers.
 
 Two long-lived branches:
+
 - `master` tracks upstream Snowflake releases. Sync via the `upstream` remote (`https://github.com/snowflakedb/snowflake-connector-nodejs.git`). Merge `upstream/master` → local `master`, push, then merge `master` → `next`.
 - `next` is the active fork branch and the default target for PRs in this repo.
 
 Re-sync risks to watch for when merging upstream into `next`:
+
 - Upstream's `package.json` keeps adding hard cloud-SDK deps over time. Each sync must move new ones into `peerDependencies` (+ optional `peerDependenciesMeta` + duplicate in `devDependencies`).
 - Upstream writes new code with **static `import`/`require`** from cloud SDKs. The static imports compile cleanly because we have the SDKs in `devDependencies`, but at runtime a consumer who hasn't installed them will throw on first `require` of the module. **The lazy-require discipline is the load-bearing invariant of this fork.** Files that currently follow it (don't break them, and apply the same pattern to any new peer-SDK callsite):
   - `lib/telemetry/platform_detection.ts` — uses `import type` only; requires `@aws-sdk/client-sts` inside `hasAwsIdentity()`. **Critical** because `lib/services/sf.js` requires this module on every connection.
@@ -111,3 +113,7 @@ npm run prettier:format   # prettier -w .
 `oxlint` (`.oxlintrc.json`) is the linter; configuration is minimal — it's there as a fast gate, not as a strict style enforcer. **Formatting** is `prettier` (`.prettierrc.js`); run `npm run prettier:format` before committing. The pre-commit hook (`.husky/pre-commit` via `lint-staged`) runs both automatically on staged files.
 
 For JetBrains users, `webstorm-codestyle.xml` is still in the repo.
+
+## Git
+
+Never `git push`, unless explicitly asked about it.
