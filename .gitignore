@@ -14,6 +14,8 @@ wss-*-agent.config
 wss-unified-agent.jar
 whitesource/
 .nyc_output
+/.claude/*.local.*
+
 rsa_*.p8
 
 # SSH private key for WIF tests

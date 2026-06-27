@@ -6,7 +6,7 @@ import ErrorCodeEnum from './lib/error_code';
  * The snowflake-sdk module provides an instance to connect to the Snowflake server
  * @see [source] {@link https://docs.snowflake.com/en/developer-guide/node-js/nodejs-driver}
  */
-declare module 'snowflake-sdk' {
+declare module '@naturalcycles/snowflake-sdk' {
   export type CustomParser = (rawColumnValue: string) => any;
   export type Bind = string | number | boolean | null;
   export type InsertBinds = readonly Bind[][];

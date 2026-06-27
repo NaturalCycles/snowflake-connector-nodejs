@@ -1,6 +1,7 @@
 *
 !dist/**/*
 dist/test/**/*
+dist/**/*.map
 !LICENSE
 !README.md
 !SECURITY.md
