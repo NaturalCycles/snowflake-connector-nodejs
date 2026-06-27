@@ -1,7 +1,4 @@
-import type {
-  GoogleAuth as _GoogleAuth,
-  Impersonated as _Impersonated,
-} from 'google-auth-library';
+import type { GoogleAuth as _GoogleAuth, Impersonated as _Impersonated } from 'google-auth-library';
 import Logger from '../../logger';
 
 export const SNOWFLAKE_AUDIENCE = 'snowflakecomputing.com';
